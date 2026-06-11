@@ -9,6 +9,8 @@ module.exports = {
   moduleNameMapper: {
     '^@react-native-async-storage/async-storage$':
       '@react-native-async-storage/async-storage/jest/async-storage-mock',
+    // Mock the icon font library so jest doesn't try to load native fonts.
+    '^@expo/vector-icons$': '<rootDir>/__mocks__/expoVectorIconsMock.js',
     // Resolve platform-split CameraVideoView to the .web variant in Jest so
     // tests are deterministic regardless of jest-expo's haste platform setting.
     '^(.*)/CameraVideoView$': '$1/CameraVideoView.web',

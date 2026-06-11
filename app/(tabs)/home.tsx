@@ -1,27 +1,258 @@
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
-  FlatList,
+  ScrollView,
   ActivityIndicator,
   Pressable,
   RefreshControl,
   Image,
   StyleSheet,
+  Dimensions,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
-import { Screen } from '../../src/components/Screen';
 import { DeviceCard } from '../../src/components/DeviceCard';
 import { deviceList } from '../../src/api/devices';
 import { useAuth } from '../../src/store/authStore';
 import type { Device } from '../../src/api/types';
-import { colors, spacing, font, radius } from '../../src/theme/tokens';
+import { colors, spacing, font } from '../../src/theme/tokens';
+
+const BANNERS = [
+  require('../../assets/zmodo/home_banner_1.png'),
+  require('../../assets/zmodo/home_banner_2.png'),
+];
+
+const BANNER_HEIGHT = 150;
+const BANNER_INTERVAL = 5000;
+
+// ─── Pill Button ─────────────────────────────────────────────────────────────
+
+interface PillButtonProps {
+  label: string;
+  testID?: string;
+}
+
+function PillButton({ label, testID }: PillButtonProps) {
+  // TODO(phase-2): wire up Settings navigation
+  return (
+    <Pressable
+      testID={testID}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      style={styles.pill}
+      onPress={() => {/* TODO(phase-2): open settings */}}
+    >
+      <Text style={styles.pillText}>{label}</Text>
+    </Pressable>
+  );
+}
+
+// ─── Banner Carousel ──────────────────────────────────────────────────────────
+
+function BannerCarousel() {
+  const [visible, setVisible] = useState(true);
+  const [activeIndex, setActiveIndex] = useState(0);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    if (!visible) return;
+    timerRef.current = setInterval(() => {
+      setActiveIndex((prev) => (prev + 1) % BANNERS.length);
+    }, BANNER_INTERVAL);
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
+  }, [visible]);
+
+  if (!visible) return null;
+
+  return (
+    <View testID="home.banner" style={styles.bannerContainer}>
+      <Image
+        source={BANNERS[activeIndex]}
+        style={styles.bannerImage}
+        resizeMode="cover"
+      />
+      {/* Close button */}
+      <Pressable
+        testID="home.banner.close"
+        accessibilityRole="button"
+        accessibilityLabel="Dismiss banner"
+        style={styles.bannerClose}
+        onPress={() => setVisible(false)}
+      >
+        <Image
+          source={require('../../assets/zmodo/home_banner_close.png')}
+          style={styles.bannerCloseIcon}
+          resizeMode="contain"
+        />
+      </Pressable>
+      {/* Page dots */}
+      <View style={styles.dotRow}>
+        {BANNERS.map((_, i) => (
+          <View
+            key={i}
+            style={[styles.dot, i === activeIndex ? styles.dotActive : styles.dotInactive]}
+          />
+        ))}
+      </View>
+    </View>
+  );
+}
+
+// ─── Notification Section ─────────────────────────────────────────────────────
+
+function NotificationSection() {
+  const [notificationsOn, setNotificationsOn] = useState(true);
+
+  return (
+    <View style={styles.section}>
+      {/* Section header row */}
+      <View style={styles.sectionHeaderRow}>
+        <Text style={styles.sectionTitle}>Notification</Text>
+        <PillButton label="Settings" testID="home.notif.settings" />
+      </View>
+      {/* Toggles */}
+      <View style={styles.notifToggles}>
+        {/* ON toggle */}
+        <Pressable
+          testID="home.notif.on"
+          accessibilityRole="button"
+          accessibilityLabel="Notifications On"
+          style={styles.toggleItem}
+          onPress={() => setNotificationsOn(true)}
+        >
+          <View
+            style={[
+              styles.toggleCircle,
+              notificationsOn ? styles.toggleCircleActive : styles.toggleCircleInactive,
+            ]}
+          >
+            <Ionicons
+              name="notifications"
+              size={26}
+              color={notificationsOn ? '#FFFFFF' : colors.dimGray}
+            />
+          </View>
+          <Text style={styles.toggleLabel}>ON</Text>
+        </Pressable>
+
+        {/* OFF toggle */}
+        <Pressable
+          testID="home.notif.off"
+          accessibilityRole="button"
+          accessibilityLabel="Notifications Off"
+          style={styles.toggleItem}
+          onPress={() => setNotificationsOn(false)}
+        >
+          <View
+            style={[
+              styles.toggleCircle,
+              !notificationsOn ? styles.toggleCircleActive : styles.toggleCircleInactive,
+            ]}
+          >
+            <Ionicons
+              name="notifications-off"
+              size={26}
+              color={!notificationsOn ? '#FFFFFF' : colors.dimGray}
+            />
+          </View>
+          <Text style={styles.toggleLabel}>OFF</Text>
+        </Pressable>
+      </View>
+    </View>
+  );
+}
+
+// ─── My Devices Section ────────────────────────────────────────────────────────
+
+interface DevicesSectionProps {
+  devices: Device[] | undefined;
+  isLoading: boolean;
+  isError: boolean;
+  error: unknown;
+  onRefetch: () => void;
+  onLive: (id: string) => void;
+  onPlayback: (id: string) => void;
+}
+
+function DevicesSection({
+  devices,
+  isLoading,
+  isError,
+  error,
+  onRefetch,
+  onLive,
+  onPlayback,
+}: DevicesSectionProps) {
+  let cardContent: React.ReactElement;
+
+  if (isLoading) {
+    cardContent = (
+      <View style={styles.deviceCardInner}>
+        <ActivityIndicator size="large" color={colors.primary} />
+      </View>
+    );
+  } else if (isError) {
+    cardContent = (
+      <View style={styles.deviceCardInner}>
+        <Text style={styles.errorText}>
+          {error instanceof Error ? error.message : 'Failed to load devices.'}
+        </Text>
+        <Pressable
+          onPress={onRefetch}
+          style={styles.retryButton}
+          accessibilityRole="button"
+        >
+          <Text style={styles.retryText}>Retry</Text>
+        </Pressable>
+      </View>
+    );
+  } else if (!devices || devices.length === 0) {
+    cardContent = (
+      <View style={styles.deviceCardInner}>
+        <Text style={styles.emptyText}>No Devices</Text>
+      </View>
+    );
+  } else {
+    cardContent = (
+      <>
+        {devices.map((device, index) => (
+          <DeviceCard
+            key={device.physical_id}
+            device={device}
+            variant="row"
+            onPress={onLive}
+            onPlayback={onPlayback}
+            showSeparator={index < devices.length - 1}
+          />
+        ))}
+      </>
+    );
+  }
+
+  return (
+    <View style={styles.section}>
+      {/* Section header row */}
+      <View style={styles.sectionHeaderRow}>
+        <Text style={styles.sectionTitle}>My Devices</Text>
+        <PillButton label="Settings" testID="home.devices.settings" />
+      </View>
+      {/* White card container */}
+      <View style={styles.devicesCard}>{cardContent}</View>
+    </View>
+  );
+}
+
+// ─── Home Screen ──────────────────────────────────────────────────────────────
 
 export default function HomeScreen() {
   const router = useRouter();
-
   const token = useAuth((s) => s.token);
+
   const { data, isLoading, isError, error, refetch, isFetching } = useQuery({
     queryKey: ['devices', token],
     queryFn: () => deviceList(token!),
@@ -40,65 +271,29 @@ export default function HomeScreen() {
     router.push('/add-device' as any);
   };
 
-  const rightAction = (
-    <Pressable
-      onPress={handleAddDevice}
-      accessibilityRole="button"
-      accessibilityLabel="Add device"
-      style={styles.addButton}
-    >
-      <Image
-        source={require('../../assets/zmodo/icon_plus.png')}
-        style={styles.addIcon}
-        resizeMode="contain"
-      />
-    </Pressable>
-  );
-
-  let content: React.ReactElement;
-
-  if (isLoading) {
-    content = (
-      <View style={styles.centered}>
-        <ActivityIndicator size="large" color={colors.primary} />
-      </View>
-    );
-  } else if (isError) {
-    content = (
-      <View style={styles.centered}>
-        <Text style={styles.errorText}>
-          {error instanceof Error ? error.message : 'Failed to load devices.'}
-        </Text>
+  return (
+    <SafeAreaView style={styles.safe}>
+      {/* Header */}
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>Welcome</Text>
         <Pressable
-          onPress={() => void refetch()}
-          style={styles.retryButton}
+          onPress={handleAddDevice}
           accessibilityRole="button"
+          accessibilityLabel="Add device"
+          style={styles.addButton}
         >
-          <Text style={styles.retryText}>Retry</Text>
+          <Image
+            source={require('../../assets/zmodo/icon_add_new.png')}
+            style={styles.addIcon}
+            resizeMode="contain"
+          />
         </Pressable>
       </View>
-    );
-  } else if (!data || data.length === 0) {
-    content = (
-      <View style={styles.centered}>
-        <Text style={styles.emptyText}>No devices found.</Text>
-        <Text style={styles.emptySubText}>Tap + to add your first device.</Text>
-      </View>
-    );
-  } else {
-    content = (
-      <FlatList<Device>
-        data={data}
-        keyExtractor={(item) => item.physical_id}
-        renderItem={({ item }) => (
-          <DeviceCard
-            device={item}
-            onPress={handleLive}
-            onPlayback={handlePlayback}
-          />
-        )}
-        contentContainerStyle={styles.listContent}
-        style={styles.list}
+
+      {/* Scrollable body */}
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.scrollContent}
         refreshControl={
           <RefreshControl
             refreshing={isFetching && !isLoading}
@@ -107,49 +302,217 @@ export default function HomeScreen() {
             colors={[colors.primary]}
           />
         }
-        ListHeaderComponent={
-          <Text style={styles.sectionHeader}>My Devices</Text>
-        }
-      />
-    );
-  }
+      >
+        {/* Promo banner carousel */}
+        <BannerCarousel />
 
-  return (
-    <Screen title="My Cameras" right={rightAction}>
-      {content}
-    </Screen>
+        {/* Notification */}
+        <NotificationSection />
+
+        {/* My Devices */}
+        <DevicesSection
+          devices={data}
+          isLoading={isLoading}
+          isError={isError}
+          error={error}
+          onRefetch={() => void refetch()}
+          onLive={handleLive}
+          onPlayback={handlePlayback}
+        />
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
+// ─── Styles ───────────────────────────────────────────────────────────────────
+
 const styles = StyleSheet.create({
+  safe: {
+    flex: 1,
+    backgroundColor: '#EFEFF4',
+  },
+
+  // Header
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#EFEFF4',
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.sm,
+  },
+  headerTitle: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: '#1A1A1A',
+  },
   addButton: {
     alignItems: 'center',
     justifyContent: 'center',
-    width: 32,
-    height: 32,
+    width: 36,
+    height: 36,
   },
   addIcon: {
-    width: 22,
-    height: 22,
-    tintColor: colors.primary,
+    width: 24,
+    height: 24,
+    tintColor: '#1A1A1A',
   },
-  centered: {
+
+  // Scroll
+  scroll: {
     flex: 1,
+    backgroundColor: '#EFEFF4',
+  },
+  scrollContent: {
+    paddingBottom: spacing.xl,
+  },
+
+  // Banner
+  bannerContainer: {
+    marginBottom: 0,
+    position: 'relative',
+  },
+  bannerImage: {
+    width: '100%',
+    height: BANNER_HEIGHT,
+  },
+  bannerClose: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    width: 28,
+    height: 28,
     alignItems: 'center',
     justifyContent: 'center',
-    padding: spacing.lg,
   },
+  bannerCloseIcon: {
+    width: 22,
+    height: 22,
+  },
+  dotRow: {
+    position: 'absolute',
+    bottom: 8,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 5,
+  },
+  dot: {
+    height: 5,
+    borderRadius: 3,
+  },
+  dotActive: {
+    width: 16,
+    backgroundColor: '#FFFFFF',
+    opacity: 1,
+  },
+  dotInactive: {
+    width: 6,
+    backgroundColor: '#FFFFFF',
+    opacity: 0.6,
+  },
+
+  // Section
+  section: {
+    marginTop: spacing.md,
+    paddingHorizontal: spacing.md,
+  },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: spacing.md,
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#1A1A1A',
+  },
+
+  // Pill button
+  pill: {
+    height: 28,
+    paddingHorizontal: 12,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: colors.pillBorder,
+    backgroundColor: 'transparent',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pillText: {
+    fontSize: 12,
+    color: colors.textDarkGray,
+  },
+
+  // Notification toggles
+  notifToggles: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 24,
+  },
+  toggleItem: {
+    alignItems: 'center',
+    gap: 6,
+  },
+  toggleCircle: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  toggleCircleActive: {
+    backgroundColor: colors.primary,
+  },
+  toggleCircleInactive: {
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: colors.border,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  toggleLabel: {
+    fontSize: 13,
+    color: colors.textDarkGray,
+  },
+
+  // Devices card
+  devicesCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  deviceCardInner: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 40,
+    paddingHorizontal: spacing.md,
+    gap: 12,
+  },
+
+  // Error / empty / loading states (inside device card)
   errorText: {
     fontSize: font.md,
     color: colors.danger,
     textAlign: 'center',
-    marginBottom: spacing.md,
   },
   retryButton: {
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.lg,
     backgroundColor: colors.primary,
-    borderRadius: radius.sm,
+    borderRadius: 8,
   },
   retryText: {
     color: colors.textOnPrimary,
@@ -157,29 +520,8 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   emptyText: {
-    fontSize: font.lg,
-    color: colors.text,
-    fontWeight: '600',
-    marginBottom: spacing.xs,
-  },
-  emptySubText: {
-    fontSize: font.md,
-    color: colors.textMuted,
+    fontSize: 16,
+    color: colors.textDarkGray,
     textAlign: 'center',
-  },
-  list: {
-    backgroundColor: '#EFEFF4',
-  },
-  listContent: {
-    paddingBottom: spacing.lg,
-  },
-  sectionHeader: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#1A1A1A',
-    paddingHorizontal: spacing.md,
-    paddingTop: spacing.md,
-    paddingBottom: spacing.sm,
-    backgroundColor: '#EFEFF4',
   },
 });

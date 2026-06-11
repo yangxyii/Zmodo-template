@@ -57,19 +57,6 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
-        name="cloud"
-        options={{
-          title: 'Cloud',
-          tabBarIcon: ({ focused }) => (
-            <TabIcon
-              focused={focused}
-              onSource={require('../../assets/zmodo/tab_cloud_on.png')}
-              offSource={require('../../assets/zmodo/tab_cloud_off.png')}
-            />
-          ),
-        }}
-      />
-      <Tabs.Screen
         name="store"
         options={{
           title: 'Store',
@@ -78,6 +65,19 @@ export default function TabsLayout() {
               focused={focused}
               onSource={require('../../assets/zmodo/tab_store_on.png')}
               offSource={require('../../assets/zmodo/tab_store_off.png')}
+            />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="vault"
+        options={{
+          title: 'Vault',
+          tabBarIcon: ({ focused }) => (
+            <TabIcon
+              focused={focused}
+              onSource={require('../../assets/zmodo/tab_vault_on.png')}
+              offSource={require('../../assets/zmodo/tab_vault_off.png')}
             />
           ),
         }}
@@ -95,6 +95,13 @@ export default function TabsLayout() {
           ),
         }}
       />
+      {/* Keep cloud registered so expo-router doesn't 404 if any deep link hits it */}
+      <Tabs.Screen
+        name="cloud"
+        options={{
+          href: null, // hide from tab bar
+        }}
+      />
     </Tabs>
   );
 }
@@ -107,7 +114,7 @@ const styles = StyleSheet.create({
     height: 50,
   },
   tabLabel: {
-    fontSize: 10,
+    fontSize: 11,
     marginBottom: 2,
   },
   tabIcon: {

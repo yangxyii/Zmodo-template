@@ -10,9 +10,22 @@ interface DeviceCardProps {
   onPress: (physicalId: string) => void;
   /** Called when the Play Back button is pressed */
   onPlayback?: (physicalId: string) => void;
+  /**
+   * 'card' (default) — standalone card with bg/shadow (original behaviour).
+   * 'row'  — flat row for use inside a shared white container card; no outer bg.
+   */
+  variant?: 'card' | 'row';
+  /** When variant='row', show a hairline separator at the bottom of the row */
+  showSeparator?: boolean;
 }
 
-export function DeviceCard({ device, onPress, onPlayback }: DeviceCardProps) {
+export function DeviceCard({
+  device,
+  onPress,
+  onPlayback,
+  variant = 'card',
+  showSeparator = false,
+}: DeviceCardProps) {
   const online = isOnline(device);
 
   return (
@@ -21,7 +34,12 @@ export function DeviceCard({ device, onPress, onPlayback }: DeviceCardProps) {
       accessibilityRole="button"
       accessibilityLabel={device.device_name}
       accessibilityHint="Open live view"
-      style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
+      style={({ pressed }) => [
+        styles.base,
+        variant === 'card' ? styles.cardVariant : styles.rowVariant,
+        showSeparator && styles.rowSeparator,
+        pressed && styles.cardPressed,
+      ]}
       onPress={() => onPress(device.physical_id)}
     >
       {/* Thumbnail */}
@@ -90,12 +108,23 @@ export function DeviceCard({ device, onPress, onPlayback }: DeviceCardProps) {
 }
 
 const styles = StyleSheet.create({
-  card: {
+  base: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.bg,
     paddingVertical: spacing.md,
     paddingHorizontal: spacing.md,
+  },
+  // Standalone card variant (original behaviour)
+  cardVariant: {
+    backgroundColor: colors.bg,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#C8C8C8',
+  },
+  // Row variant — used inside shared white card (no outer bg/shadow)
+  rowVariant: {
+    backgroundColor: 'transparent',
+  },
+  rowSeparator: {
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: '#C8C8C8',
   },
