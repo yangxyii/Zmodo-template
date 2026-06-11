@@ -11,6 +11,7 @@ import {
   Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeBack } from '../../../src/hooks/useSafeBack';
 import { useQuery } from '@tanstack/react-query';
@@ -263,12 +264,14 @@ interface PlaybackHeaderProps {
 }
 
 function PlaybackHeader({ deviceName, onBack }: PlaybackHeaderProps) {
+  const insets = useSafeAreaInsets();
   return (
-    <View style={phStyles.header}>
+    <View style={[phStyles.header, { paddingTop: insets.top, height: 56 + insets.top }]}>
       <View style={phStyles.left}>
         <Pressable
           onPress={onBack}
           style={phStyles.backBtn}
+          hitSlop={12}
           accessibilityRole="button"
           accessibilityLabel="Go back"
         >
@@ -306,7 +309,8 @@ const phStyles = StyleSheet.create({
     width: 48,
   },
   backBtn: {
-    padding: spacing.xs,
+    paddingVertical: spacing.sm,
+    paddingRight: spacing.md,
   },
   backChevron: {
     fontSize: 28,
