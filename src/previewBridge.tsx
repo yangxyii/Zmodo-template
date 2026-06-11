@@ -97,11 +97,6 @@ const BRIDGE_STYLE_ID = 'iotek-preview-bridge-style';
 const HOVER_CLASS = 'iotek-select-hover';
 const SELECTED_CLASS = 'iotek-select-selected';
 const OVERLAY_ID = 'iotek-selection-overlay';
-// Any visible element under the cursor is selectable — the feature is "click a
-// div on the app, then tell the AI how to change it". closest() returns the
-// innermost matching element (usually the one the user pointed at).
-const SELECTABLE_SELECTOR =
-  '[data-testid], [aria-label], button, input, textarea, a, [role="button"], div, span';
 
 function ensureBridgeStyle() {
   if (typeof document === 'undefined' || document.getElementById(BRIDGE_STYLE_ID)) return;
@@ -190,8 +185,29 @@ function hideSelectionOverlay() {
 }
 
 function selectableElementFromEvent(event: MouseEvent) {
-  const target = event.target instanceof Element ? event.target : null;
-  return target?.closest(SELECTABLE_SELECTOR) ?? null;
+  let node = event.target instanceof Element ? event.target : null;
+  if (!node) return null;
+  // event.target is the hit-test target, which in React-Native-Web is often a
+  // big wrapper (inner Text/View frequently route pointer events to an outer
+  // container). Descend by geometry into the deepest descendant that still
+  // contains the cursor, so the dashed box frames the specific text/control
+  // under the pointer (e.g. the "Email" label) rather than the whole form.
+  const x = event.clientX;
+  const y = event.clientY;
+  for (;;) {
+    let next: Element | null = null;
+    for (const child of Array.from(node.children)) {
+      if (child.id === OVERLAY_ID) continue;
+      const r = child.getBoundingClientRect();
+      if (r.width > 0 && r.height > 0 && x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) {
+        next = child;
+        break;
+      }
+    }
+    if (!next) break;
+    node = next;
+  }
+  return node;
 }
 
 export function IotekPreviewBridge() {
