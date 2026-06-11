@@ -240,8 +240,11 @@ export function IotekPreviewBridge() {
         return;
       }
       if (type === 'iotek:clearSelection' || type === 'iotek:preview:clearSelection') {
-        selectionMode = false;
-        document.documentElement.dataset.iotekSelecting = 'false';
+        // Only clear the current hover/selection. Do NOT exit selection mode
+        // here — the mode is controlled solely by iotek:setSelectionMode. The
+        // host clears the previous pick right after enabling selection, and if
+        // clearSelection also flipped selectionMode off it would immediately
+        // cancel the mode the user just turned on (no box, nothing selectable).
         clearHover();
         clearSelected();
       }
