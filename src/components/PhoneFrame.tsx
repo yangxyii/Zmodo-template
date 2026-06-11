@@ -1,8 +1,17 @@
 import { Platform, View, StyleSheet } from 'react-native';
 import { radius } from '../theme/tokens';
 
+function isEmbeddedPreview() {
+  if (Platform.OS !== 'web' || typeof window === 'undefined') return false;
+  try {
+    return window.parent !== window;
+  } catch {
+    return true;
+  }
+}
+
 export function PhoneFrame({ children }: { children: React.ReactNode }) {
-  if (Platform.OS !== 'web') return <>{children}</>;
+  if (Platform.OS !== 'web' || isEmbeddedPreview()) return <>{children}</>;
   return (
     <View style={styles.backdrop}>
       <View style={styles.frame}>{children}</View>

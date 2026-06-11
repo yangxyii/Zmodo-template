@@ -78,15 +78,80 @@ function editableFieldsFor(element: Element) {
   return Array.from(new Set(fields));
 }
 
+function elementRect(element: Element) {
+  const rect = element.getBoundingClientRect();
+  return {
+    x: rect.left,
+    y: rect.top,
+    width: rect.width,
+    height: rect.height,
+    viewportWidth: window.innerWidth || document.documentElement.clientWidth || 393,
+    viewportHeight: window.innerHeight || document.documentElement.clientHeight || 852,
+  };
+}
+
+const BRIDGE_STYLE_ID = 'iotek-preview-bridge-style';
+const HOVER_CLASS = 'iotek-select-hover';
+const SELECTED_CLASS = 'iotek-select-selected';
+const SELECTABLE_SELECTOR = '[data-testid], [aria-label], button, input, textarea, a, [role="button"], div, span';
+
+function ensureBridgeStyle() {
+  if (typeof document === 'undefined' || document.getElementById(BRIDGE_STYLE_ID)) return;
+  const style = document.createElement('style');
+  style.id = BRIDGE_STYLE_ID;
+  style.textContent = `
+    html[data-iotek-selecting="true"] * {
+      cursor: crosshair !important;
+    }
+
+    .${HOVER_CLASS},
+    .${SELECTED_CLASS} {
+      position: relative;
+    }
+
+    .${HOVER_CLASS} {
+      outline: 2px dashed #38bdf8 !important;
+      outline-offset: 3px !important;
+      box-shadow: 0 0 0 4px rgba(56, 189, 248, 0.16) !important;
+    }
+
+    .${SELECTED_CLASS} {
+      outline: 2px dashed #4ade80 !important;
+      outline-offset: 3px !important;
+      box-shadow: 0 0 0 4px rgba(74, 222, 128, 0.2) !important;
+    }
+  `;
+  document.head.appendChild(style);
+}
+
+function selectableElementFromEvent(event: MouseEvent) {
+  const target = event.target instanceof Element ? event.target : null;
+  return target?.closest(SELECTABLE_SELECTOR) ?? null;
+}
+
 export function IotekPreviewBridge() {
   const router = useRouter();
   const pathname = usePathname();
 
   useEffect(() => {
     if (Platform.OS !== 'web') return;
+    ensureBridgeStyle();
     postToHost({ type: 'iotek:screens', screens: SCREEN_OPTIONS });
 
     let selectionMode = false;
+    let hoveredElement: Element | null = null;
+    let selectedElement: Element | null = null;
+
+    function clearHover() {
+      hoveredElement?.classList.remove(HOVER_CLASS);
+      hoveredElement = null;
+      postToHost({ type: 'iotek:elementHoverClear' });
+    }
+
+    function clearSelected() {
+      selectedElement?.classList.remove(SELECTED_CLASS);
+      selectedElement = null;
+    }
 
     function handleHostMessage(event: MessageEvent) {
       const data = event.data;
@@ -104,19 +169,39 @@ export function IotekPreviewBridge() {
       if (type === 'iotek:setSelectionMode') {
         selectionMode = Boolean(data.enabled);
         document.documentElement.dataset.iotekSelecting = selectionMode ? 'true' : 'false';
+        if (!selectionMode) clearHover();
+      }
+    }
+
+    function handleSelectMove(event: MouseEvent) {
+      if (!selectionMode) return;
+      const nextElement = selectableElementFromEvent(event);
+      if (nextElement === hoveredElement) return;
+      clearHover();
+      if (nextElement && nextElement !== selectedElement) {
+        hoveredElement = nextElement;
+        hoveredElement.classList.add(HOVER_CLASS);
+        postToHost({
+          type: 'iotek:elementHover',
+          rect: elementRect(hoveredElement),
+          label: elementLabel(hoveredElement),
+          elementId: elementId(hoveredElement),
+        });
       }
     }
 
     function handleSelectClick(event: MouseEvent) {
       if (!selectionMode) return;
-      const target = event.target instanceof Element ? event.target : null;
-      if (!target) return;
-      const selected = target.closest('[data-testid], [aria-label], button, input, textarea, a, [role="button"], div, span');
+      const selected = selectableElementFromEvent(event);
       if (!selected) return;
       event.preventDefault();
       event.stopPropagation();
       selectionMode = false;
       document.documentElement.dataset.iotekSelecting = 'false';
+      clearHover();
+      clearSelected();
+      selectedElement = selected;
+      selectedElement.classList.add(SELECTED_CLASS);
       postToHost({
         type: 'iotek:elementSelected',
         selection: {
@@ -125,15 +210,29 @@ export function IotekPreviewBridge() {
           screen: pathname ?? undefined,
           description: `${selected.tagName.toLowerCase()} on ${pathname ?? 'current screen'}`,
           editableFields: editableFieldsFor(selected),
+          rect: elementRect(selected),
         },
       });
     }
 
+    function handleSelectKeyDown(event: KeyboardEvent) {
+      if (!selectionMode || event.key !== 'Escape') return;
+      selectionMode = false;
+      document.documentElement.dataset.iotekSelecting = 'false';
+      clearHover();
+    }
+
     window.addEventListener('message', handleHostMessage);
+    document.addEventListener('mousemove', handleSelectMove, true);
     document.addEventListener('click', handleSelectClick, true);
+    document.addEventListener('keydown', handleSelectKeyDown, true);
     return () => {
       window.removeEventListener('message', handleHostMessage);
+      document.removeEventListener('mousemove', handleSelectMove, true);
       document.removeEventListener('click', handleSelectClick, true);
+      document.removeEventListener('keydown', handleSelectKeyDown, true);
+      clearHover();
+      clearSelected();
       delete document.documentElement.dataset.iotekSelecting;
     };
   }, [pathname, router]);
