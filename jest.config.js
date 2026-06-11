@@ -14,5 +14,8 @@ module.exports = {
     // Resolve platform-split CameraVideoView to the .web variant in Jest so
     // tests are deterministic regardless of jest-expo's haste platform setting.
     '^(.*)/CameraVideoView$': '$1/CameraVideoView.web',
+    // Resolve platform-split VaultWebView to the .web (iframe) variant in Jest
+    // so that react-native-webview native code is never loaded in tests.
+    '^(.*)/VaultWebView$': '$1/VaultWebView.web',
   },
 };

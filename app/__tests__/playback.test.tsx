@@ -1,53 +1,127 @@
 import React from 'react';
-import { render, fireEvent } from '@testing-library/react-native';
+import { render } from '@testing-library/react-native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import PlaybackScreen from '../camera/[id]/playback';
-import * as pb from '../../src/api/playback';
+import * as eventsApi from '../../src/api/events';
+import * as devicesApi from '../../src/api/devices';
 import { useAuth } from '../../src/store/authStore';
 
 jest.mock('expo-router', () => ({
   useLocalSearchParams: () => ({ id: 'ZM1' }),
-  useRouter: () => ({ push: jest.fn(), back: jest.fn() }),
+  useRouter: () => ({ push: jest.fn(), back: jest.fn(), canGoBack: () => true }),
 }));
 
-beforeEach(() => { useAuth.setState({ token: 'tk', user: null, hydrated: true } as any); });
+beforeEach(() => {
+  useAuth.setState({ token: 'tk', user: null, hydrated: true } as any);
+});
 
 function wrap(ui: React.ReactElement) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(<QueryClientProvider client={qc}>{ui}</QueryClientProvider>);
 }
 
-test('renders playback video placeholder + SD/Cloud tabs', async () => {
-  jest.spyOn(pb, 'recordList').mockResolvedValue([{ start_time: 0, end_time: 3599, file_type: 4 }] as any);
-  jest.spyOn(pb, 'storageList').mockResolvedValue([] as any);
-  const { findByTestId, getByText } = wrap(<PlaybackScreen />);
-  expect(await findByTestId('camera.liveView')).toBeTruthy(); // CameraVideoView placeholder (shared testID)
-  expect(getByText(/SD|sd card|tf/i)).toBeTruthy();
-  expect(getByText(/cloud/i)).toBeTruthy();
+const DEVICE = { physical_id: 'ZM1', device_name: 'Cam A', device_online: '1', device_type: '0' };
+
+const FAKE_EVENTS = [
+  {
+    id: 'ev1',
+    from_id: 'ZM1',
+    device_name: 'Cam A',
+    type: '0',
+    alarm_time: '1749600000',
+    create_time: '1749600000',
+    image_url: '/path/to/thumb1.jpg',
+    video_url: '',
+    cloud_playback: '1',
+    moving_object: '0',
+    channel: 0,
+    if_read: '0',
+  },
+  {
+    id: 'ev2',
+    from_id: 'ZM1',
+    device_name: 'Cam A',
+    type: '0',
+    alarm_time: '1749603600',
+    create_time: '1749603600',
+    image_url: '/path/to/thumb2.jpg',
+    video_url: '',
+    cloud_playback: '1',
+    moving_object: '0',
+    channel: 0,
+    if_read: '0',
+  },
+];
+
+test('renders video placeholder (camera.liveView)', async () => {
+  jest.spyOn(devicesApi, 'deviceList').mockResolvedValue([DEVICE] as any);
+  jest.spyOn(eventsApi, 'searchEvents').mockResolvedValue([]);
+  jest.spyOn(eventsApi, 'eventThumbnailUrl').mockReturnValue('http://example.com/thumb.jpg');
+  jest.spyOn(eventsApi, 'eventTypeLabel').mockReturnValue('Motion');
+  const { findByTestId } = wrap(<PlaybackScreen />);
+  expect(await findByTestId('camera.liveView')).toBeTruthy();
 });
 
-test('can switch to Cloud tab', async () => {
-  jest.spyOn(pb, 'recordList').mockResolvedValue([] as any);
-  jest.spyOn(pb, 'storageList').mockResolvedValue([{ record_type: 0, start_time: '2026-06-10 12:00:00', end_time: '2026-06-10 12:10:00' }] as any);
-  const { getByTestId } = wrap(<PlaybackScreen />);
-  fireEvent.press(getByTestId('playback.tab.cloud'));
-  // no throw = pass; cloud query should run
+test('timeline renders (playback.timeline testID)', async () => {
+  jest.spyOn(devicesApi, 'deviceList').mockResolvedValue([DEVICE] as any);
+  jest.spyOn(eventsApi, 'searchEvents').mockResolvedValue([]);
+  jest.spyOn(eventsApi, 'eventThumbnailUrl').mockReturnValue('http://example.com/thumb.jpg');
+  jest.spyOn(eventsApi, 'eventTypeLabel').mockReturnValue('Motion');
+  const { findByTestId } = wrap(<PlaybackScreen />);
+  expect(await findByTestId('playback.timeline')).toBeTruthy();
 });
 
-test('shows No recordings when recordList returns empty array', async () => {
-  jest.spyOn(pb, 'recordList').mockResolvedValue([] as any);
-  jest.spyOn(pb, 'storageList').mockResolvedValue([] as any);
+test('Alerts section header renders', async () => {
+  jest.spyOn(devicesApi, 'deviceList').mockResolvedValue([DEVICE] as any);
+  jest.spyOn(eventsApi, 'searchEvents').mockResolvedValue([]);
+  jest.spyOn(eventsApi, 'eventThumbnailUrl').mockReturnValue('http://example.com/thumb.jpg');
+  jest.spyOn(eventsApi, 'eventTypeLabel').mockReturnValue('Motion');
   const { findByText } = wrap(<PlaybackScreen />);
-  expect(await findByText(/No recordings/i)).toBeTruthy();
+  expect(await findByText('Alerts')).toBeTruthy();
 });
 
-test('prev date button changes the displayed date', async () => {
-  jest.spyOn(pb, 'recordList').mockResolvedValue([] as any);
-  jest.spyOn(pb, 'storageList').mockResolvedValue([] as any);
-  const { getByTestId } = wrap(<PlaybackScreen />);
-  const label = getByTestId('playback.date.label');
-  const initialDate = label.props.children as string;
-  fireEvent.press(getByTestId('playback.date.prev'));
-  const newDate = label.props.children as string;
-  expect(newDate).not.toBe(initialDate);
+test('renders 2 alert rows with Motion label when 2 events returned', async () => {
+  jest.spyOn(devicesApi, 'deviceList').mockResolvedValue([DEVICE] as any);
+  jest.spyOn(eventsApi, 'searchEvents').mockResolvedValue(FAKE_EVENTS as any);
+  jest.spyOn(eventsApi, 'eventThumbnailUrl').mockReturnValue('http://example.com/thumb.jpg');
+  jest.spyOn(eventsApi, 'eventTypeLabel').mockReturnValue('Motion');
+  const { findAllByTestId, findAllByText } = wrap(<PlaybackScreen />);
+  const rows = await findAllByTestId('playback.alertRow');
+  expect(rows).toHaveLength(2);
+  const motionLabels = await findAllByText('Motion');
+  expect(motionLabels.length).toBeGreaterThanOrEqual(2);
+});
+
+test('bottom bar testIDs render', async () => {
+  jest.spyOn(devicesApi, 'deviceList').mockResolvedValue([DEVICE] as any);
+  jest.spyOn(eventsApi, 'searchEvents').mockResolvedValue([]);
+  jest.spyOn(eventsApi, 'eventThumbnailUrl').mockReturnValue('http://example.com/thumb.jpg');
+  jest.spyOn(eventsApi, 'eventTypeLabel').mockReturnValue('Motion');
+  const { findByTestId } = wrap(<PlaybackScreen />);
+  expect(await findByTestId('playback.clip')).toBeTruthy();
+  expect(await findByTestId('playback.snapshot')).toBeTruthy();
+  expect(await findByTestId('playback.time')).toBeTruthy();
+  expect(await findByTestId('playback.calendar')).toBeTruthy();
+});
+
+test('video overlay testIDs render', async () => {
+  jest.spyOn(devicesApi, 'deviceList').mockResolvedValue([DEVICE] as any);
+  jest.spyOn(eventsApi, 'searchEvents').mockResolvedValue([]);
+  jest.spyOn(eventsApi, 'eventThumbnailUrl').mockReturnValue('http://example.com/thumb.jpg');
+  jest.spyOn(eventsApi, 'eventTypeLabel').mockReturnValue('Motion');
+  const { findByTestId } = wrap(<PlaybackScreen />);
+  expect(await findByTestId('playback.playPause')).toBeTruthy();
+  expect(await findByTestId('playback.mute')).toBeTruthy();
+  expect(await findByTestId('playback.fullscreen')).toBeTruthy();
+  expect(await findByTestId('playback.categories')).toBeTruthy();
+});
+
+test('shows device name in header', async () => {
+  jest.spyOn(devicesApi, 'deviceList').mockResolvedValue([DEVICE] as any);
+  jest.spyOn(eventsApi, 'searchEvents').mockResolvedValue([]);
+  jest.spyOn(eventsApi, 'eventThumbnailUrl').mockReturnValue('http://example.com/thumb.jpg');
+  jest.spyOn(eventsApi, 'eventTypeLabel').mockReturnValue('Motion');
+  const { findByText } = wrap(<PlaybackScreen />);
+  expect(await findByText('Cam A')).toBeTruthy();
+  expect(await findByText('Cloud Playback')).toBeTruthy();
 });

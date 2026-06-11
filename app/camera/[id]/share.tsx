@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useSafeBack } from '../../../src/hooks/useSafeBack';
 import { Screen } from '../../../src/components/Screen';
 import { TextField } from '../../../src/components/TextField';
 import { Button } from '../../../src/components/Button';
@@ -13,6 +14,7 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 export default function ShareScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+  const goBack = useSafeBack(`/camera/${id}/settings`);
   const token = useAuth((s) => s.token);
 
   const [email, setEmail] = useState('');
@@ -43,7 +45,7 @@ export default function ShareScreen() {
   };
 
   return (
-    <Screen title="Share Device" onBack={() => router.back()}>
+    <Screen title="Share Device" onBack={goBack}>
       <View style={styles.container}>
         <TextField
           label="Recipient Email"
