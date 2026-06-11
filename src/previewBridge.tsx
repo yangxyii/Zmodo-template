@@ -97,7 +97,12 @@ const BRIDGE_STYLE_ID = 'iotek-preview-bridge-style';
 const HOVER_CLASS = 'iotek-select-hover';
 const SELECTED_CLASS = 'iotek-select-selected';
 const OVERLAY_ID = 'iotek-selection-overlay';
-const SELECTABLE_SELECTOR = '[data-testid], [aria-label], button, input, textarea, a, [role="button"], div, span';
+// Semantically meaningful targets are preferred so the dashed box snaps to the
+// button / field / text the user actually pointed at, rather than the nearest
+// React-Native-Web wrapper <div> (almost everything renders as a <div>).
+const PRIORITY_SELECTOR =
+  '[data-testid], [aria-label], [role="button"], button, a, input, textarea, img';
+const GENERIC_SELECTOR = 'div, span, p, h1, h2, h3, h4, li';
 
 function ensureBridgeStyle() {
   if (typeof document === 'undefined' || document.getElementById(BRIDGE_STYLE_ID)) return;
@@ -142,7 +147,6 @@ function ensureBridgeStyle() {
       border-radius: 6px;
       padding: 2px 6px;
       font: 800 10px/1.2 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      text-transform: lowercase;
     }
 
     #${OVERLAY_ID}[data-kind="selected"]::before {
@@ -164,17 +168,20 @@ function selectionOverlay() {
   return overlay;
 }
 
-function showSelectionOverlay(element: Element, kind: 'hover' | 'selected') {
+function showSelectionOverlay(element: Element, kind: 'hover' | 'selected', label: string) {
   const overlay = selectionOverlay();
   if (!overlay) return;
   const rect = element.getBoundingClientRect();
+  // Align exactly with the element (fixed-positioned overlay and the element's
+  // client rect share the iframe viewport, so they stay aligned under the host
+  // phone-frame scale). Do not clamp left/top — clamping shifts the box.
   overlay.style.display = 'block';
-  overlay.style.left = `${Math.max(0, rect.left)}px`;
-  overlay.style.top = `${Math.max(0, rect.top)}px`;
-  overlay.style.width = `${Math.max(12, rect.width)}px`;
-  overlay.style.height = `${Math.max(12, rect.height)}px`;
+  overlay.style.left = `${rect.left}px`;
+  overlay.style.top = `${rect.top}px`;
+  overlay.style.width = `${Math.max(8, rect.width)}px`;
+  overlay.style.height = `${Math.max(8, rect.height)}px`;
   overlay.dataset.kind = kind;
-  overlay.dataset.label = 'div';
+  overlay.dataset.label = label || 'element';
 }
 
 function hideSelectionOverlay() {
@@ -183,9 +190,27 @@ function hideSelectionOverlay() {
   overlay.style.display = 'none';
 }
 
+function isOversized(element: Element) {
+  const rect = element.getBoundingClientRect();
+  const vw = window.innerWidth || document.documentElement.clientWidth || 393;
+  const vh = window.innerHeight || document.documentElement.clientHeight || 852;
+  // Treat near-full-screen elements (the app root / screen container) as not
+  // selectable so the dashed box never wraps the whole viewport.
+  return rect.width >= vw * 0.92 && rect.height >= vh * 0.82;
+}
+
 function selectableElementFromEvent(event: MouseEvent) {
   const target = event.target instanceof Element ? event.target : null;
-  return target?.closest(SELECTABLE_SELECTOR) ?? null;
+  if (!target) return null;
+  // 1) Prefer the closest semantically meaningful element near the cursor.
+  const priority = target.closest(PRIORITY_SELECTOR);
+  if (priority && !isOversized(priority)) return priority;
+  // 2) Otherwise the nearest generic block — but never the whole-screen root.
+  //    closest() returns the smallest enclosing match; if even that fills the
+  //    viewport there is nothing meaningful to highlight here.
+  const generic = target.closest(GENERIC_SELECTOR);
+  if (generic && !isOversized(generic)) return generic;
+  return null;
 }
 
 export function IotekPreviewBridge() {
@@ -249,7 +274,7 @@ export function IotekPreviewBridge() {
       if (nextElement && nextElement !== selectedElement) {
         hoveredElement = nextElement;
         hoveredElement.classList.add(HOVER_CLASS);
-        showSelectionOverlay(hoveredElement, 'hover');
+        showSelectionOverlay(hoveredElement, 'hover', elementLabel(hoveredElement));
         postToHost({
           type: 'iotek:elementHover',
           rect: elementRect(hoveredElement),
@@ -271,7 +296,7 @@ export function IotekPreviewBridge() {
       clearSelected();
       selectedElement = selected;
       selectedElement.classList.add(SELECTED_CLASS);
-      showSelectionOverlay(selectedElement, 'selected');
+      showSelectionOverlay(selectedElement, 'selected', elementLabel(selected));
       postToHost({
         type: 'iotek:elementSelected',
         selection: {
