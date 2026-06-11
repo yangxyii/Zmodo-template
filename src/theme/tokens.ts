@@ -18,6 +18,8 @@ export const colors = {
   disabledBtn: '#CCCCCC',
   pillBorder: '#DCDDDE',
   pageBg: '#EFEFF4',
+  circleBg: '#F2F2F2',
+  timelineBlue: '#00A8E2',
 };
 export const spacing = {
   xs: 4,
