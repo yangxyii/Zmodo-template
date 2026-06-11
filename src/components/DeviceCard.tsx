@@ -1,15 +1,18 @@
 import React from 'react';
-import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { View, Text, Pressable, Image, StyleSheet } from 'react-native';
 import type { Device } from '../api/types';
 import { isOnline } from '../api/types';
-import { colors, spacing, radius, font } from '../theme/tokens';
+import { colors, spacing, font } from '../theme/tokens';
 
 interface DeviceCardProps {
   device: Device;
+  /** Called when the card body or Live button is pressed (navigates to live view) */
   onPress: (physicalId: string) => void;
+  /** Called when the Play Back button is pressed */
+  onPlayback?: (physicalId: string) => void;
 }
 
-export function DeviceCard({ device, onPress }: DeviceCardProps) {
+export function DeviceCard({ device, onPress, onPlayback }: DeviceCardProps) {
   const online = isOnline(device);
 
   return (
@@ -21,10 +24,12 @@ export function DeviceCard({ device, onPress }: DeviceCardProps) {
       style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
       onPress={() => onPress(device.physical_id)}
     >
-      {/* Thumbnail placeholder — no remote images; streaming not available on web */}
-      <View style={styles.thumbnail}>
-        <Text style={styles.thumbnailIcon}>📷</Text>
-      </View>
+      {/* Thumbnail */}
+      <Image
+        source={require('../../assets/zmodo/device_default.png')}
+        style={styles.thumbnail}
+        resizeMode="contain"
+      />
 
       {/* Main info */}
       <View style={styles.info}>
@@ -38,19 +43,48 @@ export function DeviceCard({ device, onPress }: DeviceCardProps) {
               { backgroundColor: online ? colors.online : colors.offline },
             ]}
           />
-          <Text
-            style={[
-              styles.statusText,
-              { color: online ? colors.online : colors.offline },
-            ]}
-          >
+          <Text style={[styles.statusText, { color: colors.textDarkGray }]}>
             {online ? 'Online' : 'Offline'}
           </Text>
         </View>
       </View>
 
-      {/* Right chevron */}
-      <Text style={styles.chevron}>›</Text>
+      {/* Action buttons: Live + Play Back */}
+      <View style={styles.actions}>
+        <Pressable
+          testID="home.liveButton"
+          accessibilityRole="button"
+          accessibilityLabel="Live"
+          style={({ pressed }) => [styles.actionBtn, pressed && styles.actionBtnPressed]}
+          onPress={() => {
+            onPress(device.physical_id);
+          }}
+        >
+          <Image
+            source={require('../../assets/zmodo/icon_live.png')}
+            style={styles.actionIcon}
+            resizeMode="contain"
+          />
+          <Text style={styles.actionLabel}>Live</Text>
+        </Pressable>
+
+        <Pressable
+          testID="home.playbackButton"
+          accessibilityRole="button"
+          accessibilityLabel="Play Back"
+          style={({ pressed }) => [styles.actionBtn, pressed && styles.actionBtnPressed]}
+          onPress={() => {
+            onPlayback?.(device.physical_id);
+          }}
+        >
+          <Image
+            source={require('../../assets/zmodo/icon_playback.png')}
+            style={styles.actionIcon}
+            resizeMode="contain"
+          />
+          <Text style={styles.actionLabel}>Play Back</Text>
+        </Pressable>
+      </View>
     </Pressable>
   );
 }
@@ -60,33 +94,25 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: colors.bg,
-    borderRadius: radius.md,
-    marginHorizontal: spacing.md,
-    marginVertical: spacing.xs,
-    padding: spacing.md,
-    borderWidth: 1,
-    borderColor: colors.border,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.md,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#C8C8C8',
   },
   cardPressed: {
     opacity: 0.75,
   },
   thumbnail: {
-    width: 56,
-    height: 56,
-    borderRadius: radius.sm,
-    backgroundColor: colors.bgMuted,
-    alignItems: 'center',
-    justifyContent: 'center',
+    width: 54,
+    height: 54,
+    borderRadius: 6,
     marginRight: spacing.md,
-  },
-  thumbnailIcon: {
-    fontSize: 24,
   },
   info: {
     flex: 1,
   },
   name: {
-    fontSize: font.md,
+    fontSize: 16,
     fontWeight: '600',
     color: colors.text,
     marginBottom: spacing.xs,
@@ -97,17 +123,37 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
   },
   statusDot: {
-    width: 8,
-    height: 8,
+    width: 7,
+    height: 7,
     borderRadius: 4,
   },
   statusText: {
-    fontSize: font.sm,
-    fontWeight: '500',
+    fontSize: 12,
+    fontWeight: '400',
+    color: colors.textDarkGray,
   },
-  chevron: {
-    fontSize: 24,
-    color: colors.textMuted,
+  actions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
     marginLeft: spacing.sm,
+  },
+  actionBtn: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: 50,
+  },
+  actionBtnPressed: {
+    opacity: 0.6,
+  },
+  actionIcon: {
+    width: 32,
+    height: 32,
+  },
+  actionLabel: {
+    fontSize: 10,
+    color: colors.textDarkGray,
+    marginTop: 2,
+    textAlign: 'center',
   },
 });

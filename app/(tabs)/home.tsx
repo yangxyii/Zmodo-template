@@ -6,16 +6,17 @@ import {
   ActivityIndicator,
   Pressable,
   RefreshControl,
+  Image,
   StyleSheet,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
-import { Screen } from '../src/components/Screen';
-import { DeviceCard } from '../src/components/DeviceCard';
-import { deviceList } from '../src/api/devices';
-import { useAuth } from '../src/store/authStore';
-import type { Device } from '../src/api/types';
-import { colors, spacing, font, radius } from '../src/theme/tokens';
+import { Screen } from '../../src/components/Screen';
+import { DeviceCard } from '../../src/components/DeviceCard';
+import { deviceList } from '../../src/api/devices';
+import { useAuth } from '../../src/store/authStore';
+import type { Device } from '../../src/api/types';
+import { colors, spacing, font, radius } from '../../src/theme/tokens';
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -27,38 +28,31 @@ export default function HomeScreen() {
     enabled: !!token,
   });
 
-  const handleCardPress = (physicalId: string) => {
+  const handleLive = (physicalId: string) => {
     router.push(('/camera/' + physicalId + '/live') as any);
+  };
+
+  const handlePlayback = (physicalId: string) => {
+    router.push(('/camera/' + physicalId + '/playback') as any);
   };
 
   const handleAddDevice = () => {
     router.push('/add-device' as any);
   };
 
-  const handleAccount = () => {
-    router.push('/account' as any);
-  };
-
   const rightAction = (
-    <View style={styles.headerActions}>
-      <Pressable
-        onPress={handleAccount}
-        accessibilityRole="button"
-        accessibilityLabel="Account"
-        style={styles.headerIconButton}
-        testID="home.account"
-      >
-        <Text style={styles.headerIconText}>👤</Text>
-      </Pressable>
-      <Pressable
-        onPress={handleAddDevice}
-        accessibilityRole="button"
-        accessibilityLabel="Add device"
-        style={styles.addButton}
-      >
-        <Text style={styles.addButtonText}>+</Text>
-      </Pressable>
-    </View>
+    <Pressable
+      onPress={handleAddDevice}
+      accessibilityRole="button"
+      accessibilityLabel="Add device"
+      style={styles.addButton}
+    >
+      <Image
+        source={require('../../assets/zmodo/icon_plus.png')}
+        style={styles.addIcon}
+        resizeMode="contain"
+      />
+    </Pressable>
   );
 
   let content: React.ReactElement;
@@ -97,9 +91,14 @@ export default function HomeScreen() {
         data={data}
         keyExtractor={(item) => item.physical_id}
         renderItem={({ item }) => (
-          <DeviceCard device={item} onPress={handleCardPress} />
+          <DeviceCard
+            device={item}
+            onPress={handleLive}
+            onPlayback={handlePlayback}
+          />
         )}
-        contentContainerStyle={styles.list}
+        contentContainerStyle={styles.listContent}
+        style={styles.list}
         refreshControl={
           <RefreshControl
             refreshing={isFetching && !isLoading}
@@ -107,6 +106,9 @@ export default function HomeScreen() {
             tintColor={colors.primary}
             colors={[colors.primary]}
           />
+        }
+        ListHeaderComponent={
+          <Text style={styles.sectionHeader}>My Devices</Text>
         }
       />
     );
@@ -120,32 +122,16 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  headerActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-  },
-  headerIconButton: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: 32,
-    height: 32,
-  },
-  headerIconText: {
-    fontSize: font.md,
-    lineHeight: font.md + 4,
-  },
   addButton: {
     alignItems: 'center',
     justifyContent: 'center',
     width: 32,
     height: 32,
   },
-  addButtonText: {
-    fontSize: font.xl,
-    color: colors.primary,
-    fontWeight: '400',
-    lineHeight: font.xl + 4,
+  addIcon: {
+    width: 22,
+    height: 22,
+    tintColor: colors.primary,
   },
   centered: {
     flex: 1,
@@ -182,6 +168,18 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   list: {
-    paddingVertical: spacing.sm,
+    backgroundColor: '#EFEFF4',
+  },
+  listContent: {
+    paddingBottom: spacing.lg,
+  },
+  sectionHeader: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1A1A1A',
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.sm,
+    backgroundColor: '#EFEFF4',
   },
 });

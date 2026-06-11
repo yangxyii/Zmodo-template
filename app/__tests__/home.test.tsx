@@ -1,6 +1,6 @@
 import { render, waitFor } from '@testing-library/react-native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import HomeScreen from '../home';
+import HomeScreen from '../(tabs)/home';
 import * as devicesApi from '../../src/api/devices';
 import { useAuth } from '../../src/store/authStore';
 jest.mock('expo-router', () => ({ useRouter: () => ({ push: jest.fn() }) }));
