@@ -46,8 +46,15 @@ export default function LoginScreen() {
     }
   };
 
+  // Safe back: if there's no nav history (e.g. reached login after a logout
+  // that replaced the stack), fall back to the welcome screen.
+  const goBack = () => {
+    if (router.canGoBack()) router.back();
+    else router.replace('/welcome');
+  };
+
   return (
-    <Screen title="Log In" onBack={() => router.back()} scroll>
+    <Screen title="Log In" onBack={goBack} scroll>
       <View style={styles.container}>
         {error ? (
           <View style={styles.errorBanner}>

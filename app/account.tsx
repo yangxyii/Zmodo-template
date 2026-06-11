@@ -20,7 +20,8 @@ export default function AccountScreen() {
       await logout(token!);
     } finally {
       useAuth.getState().clear();
-      router.replace('/login' as any);
+      // Return to the first screen (welcome carousel), like the native app.
+      router.replace('/welcome');
     }
   };
 
@@ -28,7 +29,7 @@ export default function AccountScreen() {
   const displayEmail = user?.email ?? '';
 
   return (
-    <Screen title="Account" onBack={() => router.back()}>
+    <Screen title="Account" onBack={router.canGoBack() ? () => router.back() : undefined}>
       <View style={styles.container}>
         {/* User info card */}
         <View style={styles.userCard}>
