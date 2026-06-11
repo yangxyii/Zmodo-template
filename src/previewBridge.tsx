@@ -97,12 +97,11 @@ const BRIDGE_STYLE_ID = 'iotek-preview-bridge-style';
 const HOVER_CLASS = 'iotek-select-hover';
 const SELECTED_CLASS = 'iotek-select-selected';
 const OVERLAY_ID = 'iotek-selection-overlay';
-// Semantically meaningful targets are preferred so the dashed box snaps to the
-// button / field / text the user actually pointed at, rather than the nearest
-// React-Native-Web wrapper <div> (almost everything renders as a <div>).
-const PRIORITY_SELECTOR =
-  '[data-testid], [aria-label], [role="button"], button, a, input, textarea, img';
-const GENERIC_SELECTOR = 'div, span, p, h1, h2, h3, h4, li';
+// Any visible element under the cursor is selectable — the feature is "click a
+// div on the app, then tell the AI how to change it". closest() returns the
+// innermost matching element (usually the one the user pointed at).
+const SELECTABLE_SELECTOR =
+  '[data-testid], [aria-label], button, input, textarea, a, [role="button"], div, span';
 
 function ensureBridgeStyle() {
   if (typeof document === 'undefined' || document.getElementById(BRIDGE_STYLE_ID)) return;
@@ -190,27 +189,9 @@ function hideSelectionOverlay() {
   overlay.style.display = 'none';
 }
 
-function isOversized(element: Element) {
-  const rect = element.getBoundingClientRect();
-  const vw = window.innerWidth || document.documentElement.clientWidth || 393;
-  const vh = window.innerHeight || document.documentElement.clientHeight || 852;
-  // Treat near-full-screen elements (the app root / screen container) as not
-  // selectable so the dashed box never wraps the whole viewport.
-  return rect.width >= vw * 0.92 && rect.height >= vh * 0.82;
-}
-
 function selectableElementFromEvent(event: MouseEvent) {
   const target = event.target instanceof Element ? event.target : null;
-  if (!target) return null;
-  // 1) Prefer the closest semantically meaningful element near the cursor.
-  const priority = target.closest(PRIORITY_SELECTOR);
-  if (priority && !isOversized(priority)) return priority;
-  // 2) Otherwise the nearest generic block — but never the whole-screen root.
-  //    closest() returns the smallest enclosing match; if even that fills the
-  //    viewport there is nothing meaningful to highlight here.
-  const generic = target.closest(GENERIC_SELECTOR);
-  if (generic && !isOversized(generic)) return generic;
-  return null;
+  return target?.closest(SELECTABLE_SELECTOR) ?? null;
 }
 
 export function IotekPreviewBridge() {
