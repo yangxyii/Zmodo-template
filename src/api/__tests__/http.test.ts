@@ -1,4 +1,8 @@
-jest.mock('../../config', () => ({ API_PROXY: 'http://proxy.local/', IOTEK_BASE_URL: 'https://base.test' }));
+jest.mock('../../config', () => ({
+  API_PROXY: 'http://proxy.local/',
+  IOTEK_BASE_URL: 'https://base.test',
+  getIdentityBaseUrl: () => 'https://base.test',
+}));
 
 import { postForm } from '../http';
 

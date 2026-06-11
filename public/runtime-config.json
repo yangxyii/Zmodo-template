@@ -1,0 +1,14 @@
+{
+  "services": {
+    "identity": {
+      "base_url": "https://11-app-mop.iotek.ai"
+    },
+    "live_webrtc": {
+      "base_url": "https://11-webetc.iotek.ai"
+    }
+  },
+  "app": {
+    "display_name": "Zmodo",
+    "theme_accent_hex": "#00AEEF"
+  }
+}

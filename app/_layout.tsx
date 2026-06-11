@@ -3,23 +3,37 @@ import { Stack } from 'expo-router';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { PhoneFrame } from '../src/components/PhoneFrame';
 import { useAuth } from '../src/store/authStore';
+import { loadRuntimeConfig } from '../src/config';
+import { IotekPreviewBridge } from '../src/previewBridge';
 
 const queryClient = new QueryClient();
 
 export default function RootLayout() {
   const hydrated = useAuth((s) => s.hydrated);
+  const [runtimeReady, setRuntimeReady] = React.useState(false);
 
   useEffect(() => {
-    void useAuth.getState().hydrate();
+    let cancelled = false;
+    void loadRuntimeConfig().finally(() => {
+      if (!cancelled) setRuntimeReady(true);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  if (!hydrated) {
+  useEffect(() => {
+    if (runtimeReady) void useAuth.getState().hydrate();
+  }, [runtimeReady]);
+
+  if (!runtimeReady || !hydrated) {
     // Render nothing while hydrating persisted auth state
     return null;
   }
 
   return (
     <QueryClientProvider client={queryClient}>
+      <IotekPreviewBridge />
       <PhoneFrame>
         <Stack screenOptions={{ headerShown: false }} />
       </PhoneFrame>

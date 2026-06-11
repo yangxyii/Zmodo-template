@@ -1,5 +1,7 @@
+import { getThemeAccentHex } from '../config';
+
 export const colors = {
-  primary: '#00AEEF',
+  primary: getThemeAccentHex(),
   bg: '#FFFFFF',
   bgMuted: '#F2F4F7',
   text: '#1A1A1A',
