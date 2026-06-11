@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -20,13 +20,10 @@ import { useAuth } from '../../src/store/authStore';
 import type { Device } from '../../src/api/types';
 import { colors, spacing, font } from '../../src/theme/tokens';
 
-const BANNERS = [
-  require('../../assets/zmodo/home_banner_1.png'),
-  require('../../assets/zmodo/home_banner_2.png'),
-];
+// Single promo banner (the product-shelf image), matching the native app.
+const BANNER_IMAGE = require('../../assets/zmodo/home_banner_2.png');
 
 const BANNER_HEIGHT = 150;
-const BANNER_INTERVAL = 5000;
 
 // ─── Pill Button ─────────────────────────────────────────────────────────────
 
@@ -50,32 +47,15 @@ function PillButton({ label, testID }: PillButtonProps) {
   );
 }
 
-// ─── Banner Carousel ──────────────────────────────────────────────────────────
+// ─── Promo Banner (single, dismissible) ───────────────────────────────────────
 
-function BannerCarousel() {
+function PromoBanner() {
   const [visible, setVisible] = useState(true);
-  const [activeIndex, setActiveIndex] = useState(0);
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  useEffect(() => {
-    if (!visible) return;
-    timerRef.current = setInterval(() => {
-      setActiveIndex((prev) => (prev + 1) % BANNERS.length);
-    }, BANNER_INTERVAL);
-    return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
-    };
-  }, [visible]);
-
   if (!visible) return null;
 
   return (
     <View testID="home.banner" style={styles.bannerContainer}>
-      <Image
-        source={BANNERS[activeIndex]}
-        style={styles.bannerImage}
-        resizeMode="cover"
-      />
+      <Image source={BANNER_IMAGE} style={styles.bannerImage} resizeMode="cover" />
       {/* Close button */}
       <Pressable
         testID="home.banner.close"
@@ -90,15 +70,6 @@ function BannerCarousel() {
           resizeMode="contain"
         />
       </Pressable>
-      {/* Page dots */}
-      <View style={styles.dotRow}>
-        {BANNERS.map((_, i) => (
-          <View
-            key={i}
-            style={[styles.dot, i === activeIndex ? styles.dotActive : styles.dotInactive]}
-          />
-        ))}
-      </View>
     </View>
   );
 }
@@ -303,8 +274,8 @@ export default function HomeScreen() {
           />
         }
       >
-        {/* Promo banner carousel */}
-        <BannerCarousel />
+        {/* Promo banner */}
+        <PromoBanner />
 
         {/* Notification */}
         <NotificationSection />
@@ -389,30 +360,6 @@ const styles = StyleSheet.create({
   bannerCloseIcon: {
     width: 22,
     height: 22,
-  },
-  dotRow: {
-    position: 'absolute',
-    bottom: 8,
-    left: 0,
-    right: 0,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 5,
-  },
-  dot: {
-    height: 5,
-    borderRadius: 3,
-  },
-  dotActive: {
-    width: 16,
-    backgroundColor: '#FFFFFF',
-    opacity: 1,
-  },
-  dotInactive: {
-    width: 6,
-    backgroundColor: '#FFFFFF',
-    opacity: 0.6,
   },
 
   // Section

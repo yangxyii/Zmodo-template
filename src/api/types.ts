@@ -24,6 +24,7 @@ export interface Device {
   device_type: string;   // "0"=IPC "1"=NVR
   device_model?: string;
   product_id?: string;
+  photo_url?: string;    // remote device thumbnail (often empty)
   permission?: string;   // JSON string {rb,pb,al,vdownload}
   aes_key?: string;
   upnp_ip?: string;

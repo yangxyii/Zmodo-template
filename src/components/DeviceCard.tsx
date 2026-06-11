@@ -49,9 +49,13 @@ export function DeviceCard({
         onPress={() => onPress(device.physical_id)}
       >
         <Image
-          source={require('../../assets/zmodo/device_default.png')}
+          source={
+            device.photo_url && /^https?:\/\//.test(device.photo_url)
+              ? { uri: device.photo_url }
+              : require('../../assets/zmodo/device_camera_default.png')
+          }
           style={styles.thumbnail}
-          resizeMode="contain"
+          resizeMode="cover"
         />
         <View style={styles.info}>
           <Text style={styles.name} numberOfLines={1}>
