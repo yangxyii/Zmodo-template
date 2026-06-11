@@ -9,6 +9,7 @@ import {
   ScrollView,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useSafeBack } from '../../../src/hooks/useSafeBack';
 import { useQueryClient, useMutation, useQuery } from '@tanstack/react-query';
 import { Screen } from '../../../src/components/Screen';
 import { Cell } from '../../../src/components/Cell';
@@ -86,6 +87,7 @@ function useDeviceMutation(
 export default function SettingsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+  const goBack = useSafeBack('/home');
   const token = useAuth((s) => s.token);
   const queryClient = useQueryClient();
 
@@ -114,7 +116,7 @@ export default function SettingsScreen() {
 
   if (!device) {
     return (
-      <Screen title="Settings" onBack={() => router.back()}>
+      <Screen title="Settings" onBack={goBack}>
         <View style={styles.notFound}>
           <Text style={styles.notFoundText}>Device not found</Text>
         </View>
@@ -158,7 +160,7 @@ export default function SettingsScreen() {
   return (
     <Screen
       title={device.device_name || 'Settings'}
-      onBack={() => router.back()}
+      onBack={goBack}
       scroll
     >
       {/* ── Error banner ── */}

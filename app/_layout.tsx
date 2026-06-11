@@ -12,6 +12,7 @@ const queryClient = new QueryClient();
 export default function RootLayout() {
   const hydrated = useAuth((s) => s.hydrated);
   const [runtimeReady, setRuntimeReady] = React.useState(false);
+  const [hostsReady, setHostsReady] = React.useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -26,12 +27,15 @@ export default function RootLayout() {
   useEffect(() => {
     if (runtimeReady) {
       void useAuth.getState().hydrate();
-      void loadHosts();
+      // Restore the persisted host_list BEFORE screens (and their queries)
+      // mount, so host-routed calls (alerts/vault) hit the right host on a
+      // refresh / deep link instead of falling back to the base URL.
+      loadHosts().finally(() => setHostsReady(true));
     }
   }, [runtimeReady]);
 
-  if (!runtimeReady || !hydrated) {
-    // Render nothing while hydrating persisted auth state
+  if (!runtimeReady || !hydrated || !hostsReady) {
+    // Render nothing while hydrating persisted auth + host state
     return null;
   }
 

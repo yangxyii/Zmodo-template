@@ -11,6 +11,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
+import { useSafeBack } from '../../../src/hooks/useSafeBack';
 import { Screen } from '../../../src/components/Screen';
 import { CameraVideoView } from '../../../src/components/CameraVideoView';
 import { CircleIconButton } from '../../../src/components/CircleIconButton';
@@ -41,6 +42,7 @@ type Quality = 'LD' | 'SD' | 'HD';
 export default function LiveScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+  const goBack = useSafeBack('/home');
   const token = useAuth((s) => s.token);
 
   const [quality, setQuality] = useState<Quality>('LD');
@@ -116,7 +118,7 @@ export default function LiveScreen() {
   return (
     <Screen
       title={deviceName}
-      onBack={() => router.back()}
+      onBack={goBack}
       right={settingsBtn}
     >
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>

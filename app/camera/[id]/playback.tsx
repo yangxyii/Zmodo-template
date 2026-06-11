@@ -7,10 +7,12 @@ import {
   StyleSheet,
   ScrollView,
   FlatList,
+  ActivityIndicator,
   Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useSafeBack } from '../../../src/hooks/useSafeBack';
 import { useQuery } from '@tanstack/react-query';
 import { Screen } from '../../../src/components/Screen';
 import { CameraVideoView } from '../../../src/components/CameraVideoView';
@@ -331,6 +333,7 @@ const phStyles = StyleSheet.create({
 export default function PlaybackScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+  const goBack = useSafeBack(`/camera/${id}/live`);
   const token = useAuth((s) => s.token);
 
   const [isPlaying, setIsPlaying] = useState(false);
@@ -347,7 +350,12 @@ export default function PlaybackScreen() {
   const deviceName = device?.device_name ?? id ?? 'Playback';
 
   // Events / alerts list
-  const { data: events } = useQuery<ZmodoEvent[]>({
+  const {
+    data: events,
+    isLoading: alertsLoading,
+    isError: alertsError,
+    refetch: refetchAlerts,
+  } = useQuery<ZmodoEvent[]>({
     queryKey: ['events', token, id],
     queryFn: () => searchEvents(token!, { physicalId: id ?? undefined, count: 20 }),
     enabled: !!token,
@@ -409,7 +417,7 @@ export default function PlaybackScreen() {
     <View style={styles.root}>
       <PlaybackHeader
         deviceName={deviceName}
-        onBack={() => router.back()}
+        onBack={goBack}
         onTime={handleTime}
         onCalendar={handleCalendar}
       />
@@ -504,22 +512,37 @@ export default function PlaybackScreen() {
           </Pressable>
         </View>
 
-        {/* ── Alerts list ── */}
-        {(events ?? []).map((ev, i) => (
-          <AlertRow
-            key={ev.id ?? i}
-            ev={ev}
-            token={token ?? ''}
-            testID="playback.alertRow"
-          />
-        ))}
-
-        {/* Empty state */}
-        {events !== undefined && events.length === 0 ? (
+        {/* ── Alerts list: loading / error / empty / data ── */}
+        {alertsLoading ? (
+          <View style={styles.emptyAlerts} testID="playback.alertsLoading">
+            <ActivityIndicator color={colors.primary} />
+          </View>
+        ) : alertsError ? (
+          <View style={styles.emptyAlerts}>
+            <Text style={styles.emptyAlertsText}>Couldn&apos;t load alerts.</Text>
+            <Pressable
+              testID="playback.alertsRetry"
+              onPress={() => refetchAlerts()}
+              accessibilityRole="button"
+              style={styles.retryBtn}
+            >
+              <Text style={styles.retryText}>Retry</Text>
+            </Pressable>
+          </View>
+        ) : (events ?? []).length === 0 ? (
           <View style={styles.emptyAlerts}>
             <Text style={styles.emptyAlertsText}>No alerts</Text>
           </View>
-        ) : null}
+        ) : (
+          (events ?? []).map((ev, i) => (
+            <AlertRow
+              key={ev.id ?? i}
+              ev={ev}
+              token={token ?? ''}
+              testID="playback.alertRow"
+            />
+          ))
+        )}
 
         {/* ── Bottom control bar: 4 circles ── */}
         <View style={styles.controlBar}>
@@ -647,6 +670,19 @@ const styles = StyleSheet.create({
   emptyAlerts: {
     padding: spacing.md,
     alignItems: 'center',
+  },
+  retryBtn: {
+    marginTop: spacing.sm,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: colors.primary,
+  },
+  retryText: {
+    color: colors.primary,
+    fontSize: font.sm,
+    fontWeight: '600',
   },
   emptyAlertsText: {
     fontSize: font.sm,
