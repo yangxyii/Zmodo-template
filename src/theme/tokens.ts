@@ -17,6 +17,7 @@ export const colors = {
   textDarkGray: '#5F5F5F',
   disabledBtn: '#CCCCCC',
   pillBorder: '#DCDDDE',
+  pageBg: '#EFEFF4',
 };
 export const spacing = {
   xs: 4,
