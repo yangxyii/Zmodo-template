@@ -1,0 +1,174 @@
+import React, { useEffect, useRef, useState } from 'react';
+import {
+  View,
+  Text,
+  Pressable,
+  StyleSheet,
+  Image,
+  Animated,
+  StatusBar,
+  useWindowDimensions,
+} from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
+import { colors } from '../src/theme/tokens';
+
+const BG_IMAGES = [
+  require('../assets/zmodo/login_bg_1.png'),
+  require('../assets/zmodo/login_bg_2.png'),
+  require('../assets/zmodo/login_bg_3.png'),
+] as const;
+
+const LOGO = require('../assets/zmodo/logo_zmodo.png');
+
+const INTERVAL_MS = 4000;
+const FADE_DURATION = 800;
+
+export default function WelcomeScreen() {
+  const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const { width, height } = useWindowDimensions();
+
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [nextIndex, setNextIndex] = useState(1);
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const next = (currentIndex + 1) % BG_IMAGES.length;
+      setNextIndex(next);
+      fadeAnim.setValue(0);
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: FADE_DURATION,
+        useNativeDriver: true,
+      }).start(({ finished }) => {
+        if (finished) {
+          setCurrentIndex(next);
+          fadeAnim.setValue(0);
+        }
+      });
+    }, INTERVAL_MS);
+
+    return () => clearInterval(interval);
+  }, [currentIndex, fadeAnim]);
+
+  return (
+    <View style={styles.root}>
+      <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
+
+      {/* Base background image (current) */}
+      <Image
+        source={BG_IMAGES[currentIndex]}
+        style={[styles.bgImage, { width, height }]}
+        resizeMode="cover"
+      />
+
+      {/* Next background image (fades in) */}
+      <Animated.Image
+        source={BG_IMAGES[nextIndex]}
+        style={[styles.bgImage, { width, height, opacity: fadeAnim }]}
+        resizeMode="cover"
+      />
+
+      {/* Dark overlay for text readability */}
+      <View style={styles.overlay} />
+
+      {/* Top: Logo + tagline */}
+      <View style={[styles.topContent, { marginTop: insets.top + 88 }]}>
+        <Image source={LOGO} style={styles.logo} resizeMode="contain" />
+        <Text style={styles.tagline}>Smart Home, Smart Life</Text>
+      </View>
+
+      {/* Bottom: Buttons */}
+      <View style={[styles.bottomContent, { paddingBottom: insets.bottom + 24 }]}>
+        <Pressable
+          testID="welcome.login"
+          accessibilityRole="button"
+          accessibilityLabel="Login"
+          style={styles.loginButton}
+          onPress={() => router.push('/login')}
+        >
+          <Text style={styles.loginButtonText}>Login</Text>
+        </Pressable>
+
+        <Pressable
+          testID="welcome.signup"
+          accessibilityRole="button"
+          accessibilityLabel="Sign Up"
+          style={styles.signUpButton}
+          onPress={() => {/* Sign Up — coming soon */}}
+        >
+          <Text style={styles.signUpButtonText}>Sign Up</Text>
+        </Pressable>
+      </View>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+    backgroundColor: '#000',
+  },
+  bgImage: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+  },
+  overlay: {
+    ...StyleSheet.absoluteFill,
+    backgroundColor: 'rgba(0, 0, 0, 0.25)',
+  },
+  topContent: {
+    alignItems: 'center',
+    position: 'absolute',
+    left: 0,
+    right: 0,
+  },
+  logo: {
+    width: 96,
+    height: 96,
+  },
+  tagline: {
+    marginTop: 16,
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+    textAlign: 'center',
+  },
+  bottomContent: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    paddingHorizontal: 32,
+  },
+  loginButton: {
+    backgroundColor: colors.primary,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loginButtonText: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  signUpButton: {
+    marginTop: 20,
+    height: 44,
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: colors.dimGray,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'transparent',
+  },
+  signUpButtonText: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: '600',
+  },
+});

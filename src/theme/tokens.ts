@@ -13,6 +13,9 @@ export const colors = {
   danger: '#EF4444',
   dangerBg: '#FDECEA',
   videoBg: '#111827',
+  dimGray: '#8C98A6',
+  textDarkGray: '#5F5F5F',
+  disabledBtn: '#CCCCCC',
 };
 export const spacing = {
   xs: 4,

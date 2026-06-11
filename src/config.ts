@@ -25,7 +25,7 @@ const extra = (Constants.expoConfig?.extra ?? {}) as {
 const DEFAULT_IDENTITY_BASE_URL = extra.iotekBaseUrl ?? 'https://11-app-mop.iotek.ai';
 const DEFAULT_LIVE_WEBRTC_BASE_URL = extra.liveWebrtcBaseUrl ?? 'https://11-webetc.iotek.ai';
 const DEFAULT_APP_DISPLAY_NAME = extra.appDisplayName ?? 'Zmodo';
-const DEFAULT_THEME_ACCENT_HEX = extra.themeAccentHex ?? '#00AEEF';
+const DEFAULT_THEME_ACCENT_HEX = extra.themeAccentHex ?? '#00A8E2';
 
 const defaultRuntimeConfig: RuntimeConfig = {
   services: {
