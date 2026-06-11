@@ -15,3 +15,6 @@ export const deviceModify = (
 
 export const isOnlineCheck = (token: string, physical_id: string) =>
   postForm('app_access', '/device/is_online', { token, physical_id });
+
+export const deleteDevice = (token: string, physical_id: string) =>
+  postForm('app_access', '/device/device_del', { token, physical_id });

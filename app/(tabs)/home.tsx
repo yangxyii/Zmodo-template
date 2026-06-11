@@ -30,17 +30,17 @@ const BANNER_HEIGHT = 150;
 interface PillButtonProps {
   label: string;
   testID?: string;
+  onPress?: () => void;
 }
 
-function PillButton({ label, testID }: PillButtonProps) {
-  // TODO(phase-2): wire up Settings navigation
+function PillButton({ label, testID, onPress }: PillButtonProps) {
   return (
     <Pressable
       testID={testID}
       accessibilityRole="button"
       accessibilityLabel={label}
       style={styles.pill}
-      onPress={() => {/* TODO(phase-2): open settings */}}
+      onPress={onPress}
     >
       <Text style={styles.pillText}>{label}</Text>
     </Pressable>
@@ -76,7 +76,7 @@ function PromoBanner() {
 
 // ─── Notification Section ─────────────────────────────────────────────────────
 
-function NotificationSection() {
+function NotificationSection({ onSettingsPress }: { onSettingsPress?: () => void }) {
   const [notificationsOn, setNotificationsOn] = useState(true);
 
   return (
@@ -84,7 +84,7 @@ function NotificationSection() {
       {/* Section header row */}
       <View style={styles.sectionHeaderRow}>
         <Text style={styles.sectionTitle}>Notification</Text>
-        <PillButton label="Settings" testID="home.notif.settings" />
+        <PillButton label="Settings" testID="home.notif.settings" onPress={onSettingsPress} />
       </View>
       {/* Toggles */}
       <View style={styles.notifToggles}>
@@ -148,6 +148,7 @@ interface DevicesSectionProps {
   onRefetch: () => void;
   onLive: (id: string) => void;
   onPlayback: (id: string) => void;
+  onSettingsPress?: () => void;
 }
 
 function DevicesSection({
@@ -158,6 +159,7 @@ function DevicesSection({
   onRefetch,
   onLive,
   onPlayback,
+  onSettingsPress,
 }: DevicesSectionProps) {
   let cardContent: React.ReactElement;
 
@@ -210,7 +212,7 @@ function DevicesSection({
       {/* Section header row */}
       <View style={styles.sectionHeaderRow}>
         <Text style={styles.sectionTitle}>My Devices</Text>
-        <PillButton label="Settings" testID="home.devices.settings" />
+        <PillButton label="Settings" testID="home.devices.settings" onPress={onSettingsPress} />
       </View>
       {/* White card container */}
       <View style={styles.devicesCard}>{cardContent}</View>
@@ -278,7 +280,9 @@ export default function HomeScreen() {
         <PromoBanner />
 
         {/* Notification */}
-        <NotificationSection />
+        <NotificationSection
+          onSettingsPress={() => router.push('/notification-settings' as any)}
+        />
 
         {/* My Devices */}
         <DevicesSection
@@ -289,6 +293,7 @@ export default function HomeScreen() {
           onRefetch={() => void refetch()}
           onLive={handleLive}
           onPlayback={handlePlayback}
+          onSettingsPress={() => router.push('/device-management' as any)}
         />
       </ScrollView>
     </SafeAreaView>
