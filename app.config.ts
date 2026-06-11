@@ -69,6 +69,7 @@ export default {
     plugins: ['expo-router'],
     ios: {
       supportsTablet: true,
+      bundleIdentifier: 'com.zmodo.rn.dev',
     },
     android: {
       adaptiveIcon: {
