@@ -60,6 +60,11 @@ export default {
     web: {
       favicon: './assets/favicon.png',
       bundler: 'metro',
+      // Single-page static output: assets become normal hashed files under
+      // /assets/... (no Metro dev-server "?unstable_path=" URLs), and client
+      // routing works inside the No-Code iframe. Serve the exported dist/
+      // statically — do NOT run `expo start` in production.
+      output: 'single',
     },
     plugins: ['expo-router'],
     ios: {
