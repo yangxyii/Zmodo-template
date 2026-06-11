@@ -28,46 +28,50 @@ export function DeviceCard({
 }: DeviceCardProps) {
   const online = isOnline(device);
 
+  // NOTE: the row's main tap area, Live, and Play Back are SIBLINGS — never
+  // nest a Pressable inside another Pressable, or react-native-web emits a
+  // "<button> cannot contain a nested <button>" DOM error on web.
   return (
-    <Pressable
-      testID="home.cameraCard"
-      accessibilityRole="button"
-      accessibilityLabel={device.device_name}
-      accessibilityHint="Open live view"
-      style={({ pressed }) => [
+    <View
+      style={[
         styles.base,
         variant === 'card' ? styles.cardVariant : styles.rowVariant,
         showSeparator && styles.rowSeparator,
-        pressed && styles.cardPressed,
       ]}
-      onPress={() => onPress(device.physical_id)}
     >
-      {/* Thumbnail */}
-      <Image
-        source={require('../../assets/zmodo/device_default.png')}
-        style={styles.thumbnail}
-        resizeMode="contain"
-      />
-
-      {/* Main info */}
-      <View style={styles.info}>
-        <Text style={styles.name} numberOfLines={1}>
-          {device.device_name}
-        </Text>
-        <View style={styles.statusRow}>
-          <View
-            style={[
-              styles.statusDot,
-              { backgroundColor: online ? colors.online : colors.offline },
-            ]}
-          />
-          <Text style={[styles.statusText, { color: colors.textDarkGray }]}>
-            {online ? 'Online' : 'Offline'}
+      {/* Main tap area: thumbnail + info → opens live view */}
+      <Pressable
+        testID="home.cameraCard"
+        accessibilityRole="button"
+        accessibilityLabel={device.device_name}
+        accessibilityHint="Open live view"
+        style={({ pressed }) => [styles.body, pressed && styles.cardPressed]}
+        onPress={() => onPress(device.physical_id)}
+      >
+        <Image
+          source={require('../../assets/zmodo/device_default.png')}
+          style={styles.thumbnail}
+          resizeMode="contain"
+        />
+        <View style={styles.info}>
+          <Text style={styles.name} numberOfLines={1}>
+            {device.device_name}
           </Text>
+          <View style={styles.statusRow}>
+            <View
+              style={[
+                styles.statusDot,
+                { backgroundColor: online ? colors.online : colors.offline },
+              ]}
+            />
+            <Text style={[styles.statusText, { color: colors.textDarkGray }]}>
+              {online ? 'Online' : 'Offline'}
+            </Text>
+          </View>
         </View>
-      </View>
+      </Pressable>
 
-      {/* Action buttons: Live + Play Back */}
+      {/* Action buttons: Live + Play Back (siblings of the body) */}
       <View style={styles.actions}>
         <Pressable
           testID="home.liveButton"
@@ -103,7 +107,7 @@ export function DeviceCard({
           <Text style={styles.actionLabel}>Play Back</Text>
         </Pressable>
       </View>
-    </Pressable>
+    </View>
   );
 }
 
@@ -113,6 +117,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: spacing.md,
     paddingHorizontal: spacing.md,
+  },
+  // Left tap area (thumbnail + info), fills remaining width
+  body: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   // Standalone card variant (original behaviour)
   cardVariant: {
