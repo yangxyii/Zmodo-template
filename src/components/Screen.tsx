@@ -1,7 +1,8 @@
 import React, { type ReactNode } from 'react';
-import { View, Text, Pressable, ScrollView, StyleSheet } from 'react-native';
+import { Platform, View, Text, Pressable, ScrollView, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors, spacing, font } from '../theme/tokens';
+import { isIotekEmbeddedPreview } from './PhoneFrame';
 
 interface ScreenProps {
   title?: string;
@@ -21,9 +22,13 @@ export function Screen({
   testID,
 }: ScreenProps) {
   const hasHeader = title || onBack || right;
+  const embeddedPreview = isIotekEmbeddedPreview();
 
   return (
-    <SafeAreaView style={styles.safe} testID={testID}>
+    <SafeAreaView
+      style={[styles.safe, embeddedPreview && styles.embeddedSafe]}
+      testID={testID}
+    >
       {hasHeader ? (
         <View style={styles.header}>
           <View style={styles.headerLeft}>
@@ -62,6 +67,9 @@ const styles = StyleSheet.create({
   safe: {
     flex: 1,
     backgroundColor: colors.bgMuted,
+  },
+  embeddedSafe: {
+    paddingTop: Platform.OS === 'web' ? 34 : 0,
   },
   header: {
     flexDirection: 'row',

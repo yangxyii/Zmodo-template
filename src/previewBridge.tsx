@@ -8,6 +8,7 @@ type ScreenOption = {
 };
 
 const SCREEN_OPTIONS: ScreenOption[] = [
+  { id: 'welcome', label: 'Welcome' },
   { id: 'login', label: 'Login' },
   { id: 'home', label: 'Home' },
   { id: 'add-device', label: 'Add Device' },
@@ -26,6 +27,8 @@ function currentCameraId(pathname: string | null) {
 function screenPath(screenId: string, pathname: string | null) {
   const cameraId = currentCameraId(pathname);
   switch (screenId) {
+    case 'welcome':
+      return '/welcome';
     case 'login':
       return '/login';
     case 'home':
@@ -93,6 +96,7 @@ function elementRect(element: Element) {
 const BRIDGE_STYLE_ID = 'iotek-preview-bridge-style';
 const HOVER_CLASS = 'iotek-select-hover';
 const SELECTED_CLASS = 'iotek-select-selected';
+const OVERLAY_ID = 'iotek-selection-overlay';
 const SELECTABLE_SELECTOR = '[data-testid], [aria-label], button, input, textarea, a, [role="button"], div, span';
 
 function ensureBridgeStyle() {
@@ -109,19 +113,74 @@ function ensureBridgeStyle() {
       position: relative;
     }
 
-    .${HOVER_CLASS} {
-      outline: 2px dashed #38bdf8 !important;
-      outline-offset: 3px !important;
-      box-shadow: 0 0 0 4px rgba(56, 189, 248, 0.16) !important;
+    #${OVERLAY_ID} {
+      position: fixed;
+      z-index: 2147483647;
+      pointer-events: none;
+      border: 2px dashed #38bdf8;
+      border-radius: 8px;
+      box-shadow: 0 0 0 4px rgba(56, 189, 248, 0.16), 0 0 18px rgba(56, 189, 248, 0.28);
+      display: none;
     }
 
-    .${SELECTED_CLASS} {
-      outline: 2px dashed #4ade80 !important;
-      outline-offset: 3px !important;
-      box-shadow: 0 0 0 4px rgba(74, 222, 128, 0.2) !important;
+    #${OVERLAY_ID}[data-kind="selected"] {
+      border-color: #38bdf8;
+      box-shadow: 0 0 0 4px rgba(56, 189, 248, 0.16), 0 0 18px rgba(56, 189, 248, 0.28);
+    }
+
+    #${OVERLAY_ID}::before {
+      content: attr(data-label);
+      position: absolute;
+      left: -2px;
+      top: -22px;
+      max-width: 180px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      background: #38bdf8;
+      color: #031018;
+      border-radius: 6px;
+      padding: 2px 6px;
+      font: 800 10px/1.2 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      text-transform: lowercase;
+    }
+
+    #${OVERLAY_ID}[data-kind="selected"]::before {
+      background: #38bdf8;
+      color: #031018;
     }
   `;
   document.head.appendChild(style);
+}
+
+function selectionOverlay() {
+  if (typeof document === 'undefined') return null;
+  let overlay = document.getElementById(OVERLAY_ID);
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = OVERLAY_ID;
+    document.body.appendChild(overlay);
+  }
+  return overlay;
+}
+
+function showSelectionOverlay(element: Element, kind: 'hover' | 'selected') {
+  const overlay = selectionOverlay();
+  if (!overlay) return;
+  const rect = element.getBoundingClientRect();
+  overlay.style.display = 'block';
+  overlay.style.left = `${Math.max(0, rect.left)}px`;
+  overlay.style.top = `${Math.max(0, rect.top)}px`;
+  overlay.style.width = `${Math.max(12, rect.width)}px`;
+  overlay.style.height = `${Math.max(12, rect.height)}px`;
+  overlay.dataset.kind = kind;
+  overlay.dataset.label = 'div';
+}
+
+function hideSelectionOverlay() {
+  const overlay = selectionOverlay();
+  if (!overlay) return;
+  overlay.style.display = 'none';
 }
 
 function selectableElementFromEvent(event: MouseEvent) {
@@ -145,12 +204,14 @@ export function IotekPreviewBridge() {
     function clearHover() {
       hoveredElement?.classList.remove(HOVER_CLASS);
       hoveredElement = null;
+      if (!selectedElement) hideSelectionOverlay();
       postToHost({ type: 'iotek:elementHoverClear' });
     }
 
     function clearSelected() {
       selectedElement?.classList.remove(SELECTED_CLASS);
       selectedElement = null;
+      hideSelectionOverlay();
     }
 
     function handleHostMessage(event: MessageEvent) {
@@ -170,6 +231,13 @@ export function IotekPreviewBridge() {
         selectionMode = Boolean(data.enabled);
         document.documentElement.dataset.iotekSelecting = selectionMode ? 'true' : 'false';
         if (!selectionMode) clearHover();
+        return;
+      }
+      if (type === 'iotek:clearSelection' || type === 'iotek:preview:clearSelection') {
+        selectionMode = false;
+        document.documentElement.dataset.iotekSelecting = 'false';
+        clearHover();
+        clearSelected();
       }
     }
 
@@ -181,6 +249,7 @@ export function IotekPreviewBridge() {
       if (nextElement && nextElement !== selectedElement) {
         hoveredElement = nextElement;
         hoveredElement.classList.add(HOVER_CLASS);
+        showSelectionOverlay(hoveredElement, 'hover');
         postToHost({
           type: 'iotek:elementHover',
           rect: elementRect(hoveredElement),
@@ -202,6 +271,7 @@ export function IotekPreviewBridge() {
       clearSelected();
       selectedElement = selected;
       selectedElement.classList.add(SELECTED_CLASS);
+      showSelectionOverlay(selectedElement, 'selected');
       postToHost({
         type: 'iotek:elementSelected',
         selection: {

@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { colors } from '../src/theme/tokens';
+import { getAppDisplayName, getThemeAccentHex, loadRuntimeConfig } from '../src/config';
 
 const BG_IMAGES = [
   require('../assets/zmodo/login_bg_1.png'),
@@ -19,10 +19,20 @@ const BG_IMAGES = [
   require('../assets/zmodo/login_bg_3.png'),
 ] as const;
 
-const LOGO = require('../assets/zmodo/logo_zmodo.png');
-
 const INTERVAL_MS = 4000;
 const FADE_DURATION = 800;
+
+function companyMark(displayName: string) {
+  const letters = displayName
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((word) => word[0])
+    .join('')
+    .toUpperCase();
+  return letters || 'C';
+}
 
 export default function WelcomeScreen() {
   const router = useRouter();
@@ -31,7 +41,25 @@ export default function WelcomeScreen() {
 
   const [currentIndex, setCurrentIndex] = useState(0);
   const [nextIndex, setNextIndex] = useState(1);
+  const [runtimeBrand, setRuntimeBrand] = useState({
+    displayName: getAppDisplayName(),
+    accent: getThemeAccentHex(),
+  });
   const fadeAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    let mounted = true;
+    void loadRuntimeConfig().then(() => {
+      if (!mounted) return;
+      setRuntimeBrand({
+        displayName: getAppDisplayName(),
+        accent: getThemeAccentHex(),
+      });
+    });
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -76,7 +104,9 @@ export default function WelcomeScreen() {
 
       {/* Top: Logo + tagline */}
       <View style={[styles.topContent, { marginTop: insets.top + 88 }]}>
-        <Image source={LOGO} style={styles.logo} resizeMode="contain" />
+        <View style={styles.logoMark}>
+          <Text style={styles.logoText}>{companyMark(runtimeBrand.displayName)}</Text>
+        </View>
         <Text style={styles.tagline}>Smart Home, Smart Life</Text>
       </View>
 
@@ -86,7 +116,7 @@ export default function WelcomeScreen() {
           testID="welcome.login"
           accessibilityRole="button"
           accessibilityLabel="Login"
-          style={styles.loginButton}
+          style={[styles.loginButton, { backgroundColor: runtimeBrand.accent }]}
           onPress={() => router.push('/login')}
         >
           <Text style={styles.loginButtonText}>Login</Text>
@@ -126,9 +156,21 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
   },
-  logo: {
+  logoMark: {
     width: 96,
     height: 96,
+    borderRadius: 48,
+    borderWidth: 4,
+    borderColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.12)',
+  },
+  logoText: {
+    color: '#FFFFFF',
+    fontSize: 34,
+    fontWeight: '800',
+    letterSpacing: 1,
   },
   tagline: {
     marginTop: 16,
@@ -145,7 +187,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 32,
   },
   loginButton: {
-    backgroundColor: colors.primary,
     height: 44,
     borderRadius: 22,
     alignItems: 'center',
@@ -161,7 +202,7 @@ const styles = StyleSheet.create({
     height: 44,
     borderRadius: 22,
     borderWidth: 1,
-    borderColor: colors.dimGray,
+    borderColor: 'rgba(255,255,255,0.72)',
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'transparent',
