@@ -3,6 +3,7 @@ import {
   View,
   Text,
   Pressable,
+  Image,
   StyleSheet,
   ScrollView,
   Platform,
@@ -135,17 +136,21 @@ export default function LiveScreen() {
             <Text style={styles.qualityText}>{quality}</Text>
           </Pressable>
 
-          {/* Fullscreen — bottom-right of video */}
+          {/* Fullscreen — bottom-right of video (plain white icon on the dark video, no circle) */}
           <View style={styles.fullscreenWrapper}>
-            <CircleIconButton
+            <Pressable
               testID="live.fullscreen"
               accessibilityLabel="Fullscreen"
-              source={require('../../../assets/zmodo/live_fullscreen.png')}
+              accessibilityRole="button"
               onPress={handleFullscreen}
-              size={36}
-              iconSize={20}
-              tintColor="#FFFFFF"
-            />
+              hitSlop={8}
+            >
+              <Image
+                source={require('../../../assets/zmodo/live_fullscreen.png')}
+                style={{ width: 22, height: 22, tintColor: '#FFFFFF' }}
+                resizeMode="contain"
+              />
+            </Pressable>
           </View>
         </View>
 
