@@ -5,6 +5,7 @@ import { PhoneFrame } from '../src/components/PhoneFrame';
 import { useAuth } from '../src/store/authStore';
 import { loadRuntimeConfig } from '../src/config';
 import { IotekPreviewBridge } from '../src/previewBridge';
+import { loadHosts } from '../src/api/hostStore';
 
 const queryClient = new QueryClient();
 
@@ -23,7 +24,10 @@ export default function RootLayout() {
   }, []);
 
   useEffect(() => {
-    if (runtimeReady) void useAuth.getState().hydrate();
+    if (runtimeReady) {
+      void useAuth.getState().hydrate();
+      void loadHosts();
+    }
   }, [runtimeReady]);
 
   if (!runtimeReady || !hydrated) {

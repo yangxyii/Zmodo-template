@@ -1,44 +1,50 @@
 import React from 'react';
-import { View, Text, Image, StyleSheet } from 'react-native';
-import { Screen } from '../../src/components/Screen';
-import { colors } from '../../src/theme/tokens';
+import { StyleSheet, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useAuth } from '../../src/store/authStore';
+import { vaultWebUrl } from '../../src/api/vault';
+import { VaultWebView } from '../../src/components/VaultWebView';
+import { colors, font, spacing } from '../../src/theme/tokens';
 
 export default function VaultScreen() {
+  const token = useAuth((s) => s.token);
+
+  if (!token) {
+    return (
+      <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
+        <View style={styles.centered}>
+          <Text style={styles.loginPrompt}>Please log in</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   return (
-    <Screen title="Vault">
-      <View style={styles.centered}>
-        <Image
-          source={require('../../assets/zmodo/tab_vault_off.png')}
-          style={styles.icon}
-          resizeMode="contain"
-        />
-        <Text style={styles.title}>Vault</Text>
-        <Text style={styles.subtitle}>Coming Soon</Text>
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
+      <View style={styles.webviewContainer} testID="vault.webview">
+        <VaultWebView uri={vaultWebUrl(token)} />
       </View>
-    </Screen>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: colors.bg,
+  },
+  webviewContainer: {
+    flex: 1,
+  },
   centered: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 12,
   },
-  icon: {
-    width: 48,
-    height: 48,
-    tintColor: colors.textMuted,
-    marginBottom: 8,
-  },
-  title: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: colors.text,
-  },
-  subtitle: {
-    fontSize: 14,
+  loginPrompt: {
+    fontSize: font.md,
     color: colors.textMuted,
+    paddingHorizontal: spacing.lg,
+    textAlign: 'center',
   },
 });
