@@ -1,6 +1,7 @@
 import React from 'react';
 import { Image, StyleSheet } from 'react-native';
 import { Tabs } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from '../../src/theme/tokens';
 
 type TabIconProps = {
@@ -20,14 +21,21 @@ function TabIcon({ focused, onSource, offSource }: TabIconProps) {
 }
 
 export default function TabsLayout() {
+  const insets = useSafeAreaInsets();
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarStyle: styles.tabBar,
+        // Add the bottom safe-area inset so labels clear the home indicator
+        // (a fixed height clips the labels on notched devices).
+        tabBarStyle: [
+          styles.tabBar,
+          { height: 52 + insets.bottom, paddingBottom: insets.bottom + 4 },
+        ],
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: '#9C9C9C',
         tabBarLabelStyle: styles.tabLabel,
+        tabBarIconStyle: styles.tabIconWrap,
       }}
     >
       <Tabs.Screen
@@ -111,11 +119,14 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: '#C8C8C8',
-    height: 50,
+    paddingTop: 6,
   },
   tabLabel: {
     fontSize: 11,
-    marginBottom: 2,
+    marginBottom: 0,
+  },
+  tabIconWrap: {
+    marginTop: 2,
   },
   tabIcon: {
     width: 24,
