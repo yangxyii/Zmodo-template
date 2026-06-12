@@ -120,6 +120,18 @@ function ensureBridgeStyle() {
       border-radius: 8px;
       box-shadow: 0 0 0 4px rgba(56, 189, 248, 0.16), 0 0 18px rgba(56, 189, 248, 0.28);
       display: none;
+      box-sizing: border-box;
+      /* Expo/react-native-web injects "body > div, #root > div { height:100%;
+         min-height:100% }". The overlay is a direct child of <body>, so without
+         this it gets clamped to full viewport height (a tall strip) no matter
+         what inline height we set. The #id selector outranks "body > div", so
+         these win and the box honors its real width/height. */
+      min-height: 0;
+      min-width: 0;
+      max-height: none;
+      max-width: none;
+      height: auto;
+      width: auto;
     }
 
     #${OVERLAY_ID}[data-kind="selected"] {
@@ -162,10 +174,37 @@ function selectionOverlay() {
   return overlay;
 }
 
+// The rectangle the dashed box should hug. Full-width controls (e.g. a centered
+// "Login" button) have an element box that spans the whole row, but the visible
+// content is just the text. When the element renders text, measure the text's
+// own bounding box with a Range and use it if it is meaningfully tighter, so the
+// box frames the words the user pointed at rather than the full-width control.
+function overlayRect(element: Element): DOMRect {
+  const rect = element.getBoundingClientRect();
+  // Text can be nested (a centered "Login" sits in a child span inside a
+  // full-width button), so measure the rendered text of the whole subtree with
+  // a Range, not just direct text nodes. The Range box hugs the glyphs, so the
+  // dashed box frames the words even when the user pointed at the control's
+  // padding rather than the text itself.
+  const hasText = (element.textContent ?? '').trim().length > 0;
+  if (!hasText || typeof document.createRange !== 'function') return rect;
+  try {
+    const range = document.createRange();
+    range.selectNodeContents(element);
+    const tr = range.getBoundingClientRect();
+    if (tr.width > 0 && tr.height > 0 && tr.width <= rect.width + 1 && tr.height <= rect.height + 1) {
+      return tr;
+    }
+  } catch {
+    // Range measurement unsupported — fall back to the element box.
+  }
+  return rect;
+}
+
 function showSelectionOverlay(element: Element, kind: 'hover' | 'selected', label: string) {
   const overlay = selectionOverlay();
   if (!overlay) return;
-  const rect = element.getBoundingClientRect();
+  const rect = overlayRect(element);
   // Align exactly with the element (fixed-positioned overlay and the element's
   // client rect share the iframe viewport, so they stay aligned under the host
   // phone-frame scale). Do not clamp left/top — clamping shifts the box.
