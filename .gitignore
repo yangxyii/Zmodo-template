@@ -43,3 +43,6 @@ yarn-error.*
 
 # Claude Code editor state
 .claude/
+
+# Proprietary native video libs (too large for git; restored via scripts/setup-native-libs.sh)
+modules/zmodo-video/ios/vendor/**/*.a
