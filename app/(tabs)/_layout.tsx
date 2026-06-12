@@ -1,5 +1,5 @@
 import React from 'react';
-import { Image, StyleSheet } from 'react-native';
+import { Image, StyleSheet, Text } from 'react-native';
 import { Tabs } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from '../../src/theme/tokens';
@@ -30,6 +30,16 @@ export default function TabsLayout() {
         // drop them (it infers a label position from the layout width).
         tabBarShowLabel: true,
         tabBarLabelPosition: 'below-icon',
+        // Render the label ourselves. react-navigation's built-in Label is an
+        // animated component whose height it measures via onLayout; on
+        // react-native-web that measurement comes back ~0, leaving the label
+        // collapsed to 1px (invisible). A plain <Text> with an explicit
+        // lineHeight has a real height and isn't animated.
+        tabBarLabel: ({ color, children }: { color: string; children: string }) => (
+          <Text numberOfLines={1} style={[styles.tabLabel, { color }]}>
+            {children}
+          </Text>
+        ),
         // Each tab item needs ~47px (5 pad + 24 icon + 13 label + 5 pad). Give
         // the content area 50px so the label isn't clipped on web (native fonts
         // pack tighter, which is why the phone showed labels at a smaller
@@ -129,7 +139,10 @@ const styles = StyleSheet.create({
   },
   tabLabel: {
     fontSize: 11,
+    lineHeight: 14,
+    marginTop: 2,
     marginBottom: 0,
+    textAlign: 'center',
   },
   tabIconWrap: {
     marginTop: 2,
