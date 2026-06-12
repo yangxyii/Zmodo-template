@@ -14,8 +14,10 @@ Pod::Spec.new do |s|
 
   s.dependency 'ExpoModulesCore'
 
-  # Source files: Swift module + ObjC render layer
-  s.source_files = "**/*.{h,m,mm,swift}"
+  # Source files: the module's own Swift/ObjC files (top level) + ported render
+  # layer. Do NOT glob vendor/** — those headers must stay off the framework
+  # umbrella (they're only reached via HEADER_SEARCH_PATHS at compile time).
+  s.source_files = "*.{h,m,mm,swift}", "render/**/*.{h,m,mm}"
 
   # Keep vendor tree and render source visible to the pod
   s.preserve_paths = "vendor/**/*", "render/**/*"
@@ -49,7 +51,6 @@ Pod::Spec.new do |s|
       '"$(PODS_TARGET_SRCROOT)/vendor/FFmpeg/include" ' \
       '"$(PODS_TARGET_SRCROOT)/vendor/pjsip/include" ' \
       '"$(PODS_TARGET_SRCROOT)/render"',
-    'SWIFT_OBJC_BRIDGING_HEADER'         => '$(PODS_TARGET_SRCROOT)/ZmodoVideo-Bridging-Header.h',
     'EXCLUDED_ARCHS[sdk=iphonesimulator*]' => 'x86_64 arm64',
     'VALID_ARCHS'                        => 'arm64',
   }
