@@ -40,13 +40,14 @@ export default function TabsLayout() {
             {children}
           </Text>
         ),
-        // Each tab item needs ~47px (5 pad + 24 icon + 13 label + 5 pad). Give
-        // the content area 50px so the label isn't clipped on web (native fonts
-        // pack tighter, which is why the phone showed labels at a smaller
-        // height). Plus the bottom safe-area inset to clear the home indicator.
+        // react-navigation's icon wrapper is a fixed 28px tall and the item adds
+        // 5px padding top+bottom; with a 14px label that needs ~52px. We shrink
+        // the icon wrapper to 24px (tabBarIconStyle below) and give the bar 52px
+        // of content (60 - 4 top - 4 bottom) so the label is never clipped. Plus
+        // the bottom safe-area inset to clear the home indicator.
         tabBarStyle: [
           styles.tabBar,
-          { height: 58 + insets.bottom, paddingTop: 4, paddingBottom: insets.bottom + 4 },
+          { height: 60 + insets.bottom, paddingTop: 4, paddingBottom: insets.bottom + 4 },
         ],
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: '#9C9C9C',
@@ -145,7 +146,10 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   tabIconWrap: {
-    marginTop: 2,
+    // Override react-navigation's fixed 28px-tall icon wrapper so the label
+    // below it isn't squeezed (and clipped) on web.
+    height: 24,
+    marginTop: 0,
   },
   tabIcon: {
     width: 24,
