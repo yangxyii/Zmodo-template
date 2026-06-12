@@ -26,6 +26,10 @@ export default function TabsLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
+        // Force labels under the icons; on web react-navigation can otherwise
+        // drop them (it infers a label position from the layout width).
+        tabBarShowLabel: true,
+        tabBarLabelPosition: 'below-icon',
         // Add the bottom safe-area inset so labels clear the home indicator
         // (a fixed height clips the labels on notched devices).
         tabBarStyle: [
