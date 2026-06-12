@@ -30,11 +30,13 @@ export default function TabsLayout() {
         // drop them (it infers a label position from the layout width).
         tabBarShowLabel: true,
         tabBarLabelPosition: 'below-icon',
-        // Add the bottom safe-area inset so labels clear the home indicator
-        // (a fixed height clips the labels on notched devices).
+        // Each tab item needs ~47px (5 pad + 24 icon + 13 label + 5 pad). Give
+        // the content area 50px so the label isn't clipped on web (native fonts
+        // pack tighter, which is why the phone showed labels at a smaller
+        // height). Plus the bottom safe-area inset to clear the home indicator.
         tabBarStyle: [
           styles.tabBar,
-          { height: 52 + insets.bottom, paddingBottom: insets.bottom + 4 },
+          { height: 58 + insets.bottom, paddingTop: 4, paddingBottom: insets.bottom + 4 },
         ],
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: '#9C9C9C',
