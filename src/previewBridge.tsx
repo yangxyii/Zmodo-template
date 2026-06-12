@@ -306,6 +306,16 @@ export function IotekPreviewBridge() {
 
   useEffect(() => {
     if (Platform.OS !== 'web') return;
+    // Only restore the previous route when this load is an AI-edit refresh.
+    // The host appends `?preview_refresh=N` (N>=1) to the iframe URL after an
+    // edit; the proxy shim stashes the original URL (with query) on
+    // window.__IOTEK_NOCODE_PREVIEW_PATH__ before rewriting it. On a first/plain
+    // open there is no preview_refresh, so we let the app land on its own entry
+    // screen (welcome) instead of jumping to the last-visited page.
+    const hostPath: string =
+      (window as unknown as { __IOTEK_NOCODE_PREVIEW_PATH__?: string }).__IOTEK_NOCODE_PREVIEW_PATH__ ?? '';
+    const isEditRefresh = /[?&]preview_refresh=[1-9]/.test(hostPath);
+    if (!isEditRefresh) return;
     let saved: string | null = null;
     try {
       saved = window.sessionStorage.getItem(PREVIEW_ROUTE_KEY);
