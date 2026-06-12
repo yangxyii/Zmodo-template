@@ -1,5 +1,13 @@
 import { Platform, View, StyleSheet } from 'react-native';
+import { SafeAreaFrameContext, SafeAreaInsetsContext } from 'react-native-safe-area-context';
 import { radius } from '../theme/tokens';
+
+// On web the browser reports env(safe-area-inset-*) = 0, so SafeAreaView /
+// useSafeAreaInsets give no top/bottom padding and content slides under the
+// host phone-frame's notch and home-indicator. Inside the embedded preview we
+// simulate a notched iPhone so the layout matches what runs on a real device.
+const PREVIEW_INSETS = { top: 50, right: 0, bottom: 34, left: 0 };
+const PREVIEW_FRAME = { x: 0, y: 0, width: 393, height: 852 };
 
 const EMBEDDED_PREVIEW_STYLE_ID = 'iotek-embedded-preview-style';
 
@@ -51,7 +59,13 @@ export function PhoneFrame({ children }: { children: React.ReactNode }) {
   if (Platform.OS !== 'web') return <>{children}</>;
   if (isEmbeddedPreview()) {
     ensureEmbeddedPreviewStyle();
-    return <View style={styles.embeddedRoot}>{children}</View>;
+    return (
+      <SafeAreaFrameContext.Provider value={PREVIEW_FRAME}>
+        <SafeAreaInsetsContext.Provider value={PREVIEW_INSETS}>
+          <View style={styles.embeddedRoot}>{children}</View>
+        </SafeAreaInsetsContext.Provider>
+      </SafeAreaFrameContext.Provider>
+    );
   }
   return (
     <View style={styles.backdrop}>
