@@ -249,9 +249,49 @@ function selectableElementFromEvent(event: MouseEvent) {
   return node;
 }
 
+const PREVIEW_ROUTE_KEY = 'iotek:previewRoute';
+
 export function IotekPreviewBridge() {
   const router = useRouter();
   const pathname = usePathname();
+
+  // Remember the screen across preview reloads. An AI edit reloads the iframe
+  // (cache-bust) to show new code; a fresh load drops the SPA back on its first
+  // screen, which is jarring when the user was editing e.g. the Login page.
+  // Persist the current route and restore it once on mount so the preview stays
+  // on the page the user was working on.
+  useEffect(() => {
+    if (Platform.OS !== 'web') return;
+    if (pathname && pathname !== '/') {
+      try {
+        window.sessionStorage.setItem(PREVIEW_ROUTE_KEY, pathname);
+      } catch {
+        // sessionStorage unavailable — route restore is a nice-to-have.
+      }
+    }
+  }, [pathname]);
+
+  useEffect(() => {
+    if (Platform.OS !== 'web') return;
+    let saved: string | null = null;
+    try {
+      saved = window.sessionStorage.getItem(PREVIEW_ROUTE_KEY);
+    } catch {
+      saved = null;
+    }
+    if (!saved || saved === '/' || saved === pathname) return;
+    // Defer one tick so expo-router has finished its initial mount/redirect.
+    const id = setTimeout(() => {
+      try {
+        router.replace(saved as never);
+      } catch {
+        // ignore unknown/blocked routes
+      }
+    }, 0);
+    return () => clearTimeout(id);
+    // Run once on mount only.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     if (Platform.OS !== 'web') return;
