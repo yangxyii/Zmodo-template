@@ -281,6 +281,13 @@ export function IotekPreviewBridge() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sitemap]);
 
+  // Tell the host which screen is showing, so the dropdown follows along when
+  // the user navigates inside the app manually (not just via the dropdown).
+  useEffect(() => {
+    if (Platform.OS !== 'web') return;
+    if (pathname) postToHost({ type: 'iotek:currentScreen', screenId: pathname });
+  }, [pathname]);
+
   // Remember the screen across preview reloads. An AI edit reloads the iframe
   // (cache-bust) to show new code; a fresh load drops the SPA back on its first
   // screen, which is jarring when the user was editing e.g. the Login page.
