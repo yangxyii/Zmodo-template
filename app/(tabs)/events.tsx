@@ -472,7 +472,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.videoBg,
   },
   playOverlay: {
-    ...StyleSheet.absoluteFill,
+    ...StyleSheet.absoluteFillObject,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'rgba(0,0,0,0.25)',
