@@ -14,10 +14,43 @@ Pod::Spec.new do |s|
 
   s.dependency 'ExpoModulesCore'
 
-  # Swift/Objective-C compatibility
-  s.pod_target_xcconfig = {
-    'DEFINES_MODULE' => 'YES',
-  }
+  # Source files: Swift module + ObjC render layer
+  s.source_files = "**/*.{h,m,mm,swift}"
 
-  s.source_files = "**/*.{h,m,mm,swift,hpp,cpp}"
+  # Keep vendor tree and render source visible to the pod
+  s.preserve_paths = "vendor/**/*", "render/**/*"
+
+  # Proprietary static libraries (paths relative to this podspec, i.e. ios/)
+  s.vendored_libraries =
+    "vendor/LibCore/lib/liblibcore.a",
+    "vendor/LibCore/lib/libGPAC4iOS.a",
+    "vendor/FFmpeg/lib/libavcodec.a",
+    "vendor/FFmpeg/lib/libavformat.a",
+    "vendor/FFmpeg/lib/libavutil.a",
+    "vendor/FFmpeg/lib/libswscale.a",
+    "vendor/pjsip/lib-all/libpj-arm-apple-darwin9.a",
+    "vendor/pjsip/lib-all/libpjlib-util-arm-apple-darwin9.a",
+    "vendor/pjsip/lib-all/libpjnath-arm-apple-darwin9.a",
+    "vendor/libSmartLink/libSmartLink_armv7_i386_release.a"
+
+  # System frameworks required by LibCore / FFmpeg / pjsip / render
+  s.frameworks = "VideoToolbox", "AVFoundation", "AudioToolbox", "CoreMedia",
+                 "CoreGraphics", "OpenGLES", "CFNetwork", "SystemConfiguration"
+
+  # System dylibs required by FFmpeg / LibCore
+  s.libraries = "c++", "z", "bz2", "iconv"
+
+  # Swift/Objective-C compatibility + link settings
+  s.pod_target_xcconfig = {
+    'DEFINES_MODULE'    => 'YES',
+    'OTHER_LDFLAGS'     => '-ObjC',
+    'HEADER_SEARCH_PATHS' =>
+      '"$(PODS_TARGET_SRCROOT)/vendor/LibCore/include" ' \
+      '"$(PODS_TARGET_SRCROOT)/vendor/FFmpeg/include" ' \
+      '"$(PODS_TARGET_SRCROOT)/vendor/pjsip/include" ' \
+      '"$(PODS_TARGET_SRCROOT)/render"',
+    'SWIFT_OBJC_BRIDGING_HEADER'         => '$(PODS_TARGET_SRCROOT)/ZmodoVideo-Bridging-Header.h',
+    'EXCLUDED_ARCHS[sdk=iphonesimulator*]' => 'x86_64 arm64',
+    'VALID_ARCHS'                        => 'arm64',
+  }
 end
