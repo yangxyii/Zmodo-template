@@ -304,37 +304,47 @@ export function IotekPreviewBridge() {
     }
   }, [pathname]);
 
+  // Capture the route to restore ONCE at mount — before the redirect transient
+  // (index -> welcome) overwrites it in sessionStorage. Only restore when this
+  // load is an AI-edit refresh (host appends `?preview_refresh=N`, stashed by
+  // the proxy shim on window.__IOTEK_NOCODE_PREVIEW_PATH__); a first/plain open
+  // has no preview_refresh, so the app keeps its own entry screen (welcome).
+  const pendingRouteRef = useRef<string | null>(null);
+  const restoredRef = useRef(false);
   useEffect(() => {
     if (Platform.OS !== 'web') return;
-    // Only restore the previous route when this load is an AI-edit refresh.
-    // The host appends `?preview_refresh=N` (N>=1) to the iframe URL after an
-    // edit; the proxy shim stashes the original URL (with query) on
-    // window.__IOTEK_NOCODE_PREVIEW_PATH__ before rewriting it. On a first/plain
-    // open there is no preview_refresh, so we let the app land on its own entry
-    // screen (welcome) instead of jumping to the last-visited page.
     const hostPath: string =
       (window as unknown as { __IOTEK_NOCODE_PREVIEW_PATH__?: string }).__IOTEK_NOCODE_PREVIEW_PATH__ ?? '';
-    const isEditRefresh = /[?&]preview_refresh=[1-9]/.test(hostPath);
-    if (!isEditRefresh) return;
-    let saved: string | null = null;
-    try {
-      saved = window.sessionStorage.getItem(PREVIEW_ROUTE_KEY);
-    } catch {
-      saved = null;
+    if (!/[?&]preview_refresh=[1-9]/.test(hostPath)) {
+      restoredRef.current = true; // nothing to restore on a plain open
+      return;
     }
-    if (!saved || saved === '/' || saved === pathname) return;
-    // Defer one tick so expo-router has finished its initial mount/redirect.
-    const id = setTimeout(() => {
+    try {
+      const saved = window.sessionStorage.getItem(PREVIEW_ROUTE_KEY);
+      if (saved && saved !== '/') pendingRouteRef.current = saved;
+    } catch {
+      // sessionStorage unavailable — route restore is a nice-to-have.
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Apply the restore deterministically once expo-router has settled on a real
+  // route (e.g. after index's <Redirect href="/welcome">). Reacting to pathname
+  // (instead of a setTimeout) guarantees we run AFTER the redirect, so we win
+  // the race on every machine regardless of scheduling.
+  useEffect(() => {
+    if (Platform.OS !== 'web' || restoredRef.current) return;
+    if (!pathname || pathname === '/') return; // still mounting / redirecting
+    restoredRef.current = true;
+    const target = pendingRouteRef.current;
+    if (target && target !== pathname) {
       try {
-        router.replace(saved as never);
+        router.replace(target as never);
       } catch {
         // ignore unknown/blocked routes
       }
-    }, 0);
-    return () => clearTimeout(id);
-    // Run once on mount only.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    }
+  }, [pathname, router]);
 
   useEffect(() => {
     if (Platform.OS !== 'web') return;
