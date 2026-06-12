@@ -1,53 +1,66 @@
-import { useEffect } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { Platform } from 'react-native';
-import { usePathname, useRouter } from 'expo-router';
+import { usePathname, useRouter, useSitemap, type SitemapType } from 'expo-router';
 
 type ScreenOption = {
   id: string;
   label: string;
 };
 
-const SCREEN_OPTIONS: ScreenOption[] = [
-  { id: 'welcome', label: 'Welcome' },
-  { id: 'login', label: 'Login' },
-  { id: 'home', label: 'Home' },
-  { id: 'add-device', label: 'Add Device' },
-  { id: 'account', label: 'Account' },
-  { id: 'camera-live', label: 'Camera Live' },
-  { id: 'camera-playback', label: 'Playback' },
-  { id: 'camera-settings', label: 'Camera Settings' },
-  { id: 'camera-share', label: 'Share Device' },
+// Used only until the route tree is ready; ids are navigable paths.
+const FALLBACK_SCREENS: ScreenOption[] = [
+  { id: '/welcome', label: 'Welcome' },
+  { id: '/login', label: 'Login' },
+  { id: '/home', label: 'Home' },
 ];
+
+const DYNAMIC_SEGMENT = /^\[.*\]$/;
+const GROUP_SEGMENT = /^\(.*\)$/;
+
+function humanizeSegment(segment: string) {
+  return segment.replace(/[-_]+/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase());
+}
 
 function currentCameraId(pathname: string | null) {
   const match = pathname?.match(/^\/camera\/([^/]+)/);
   return match?.[1] ?? 'preview';
 }
 
-function screenPath(screenId: string, pathname: string | null) {
-  const cameraId = currentCameraId(pathname);
-  switch (screenId) {
-    case 'welcome':
-      return '/welcome';
-    case 'login':
-      return '/login';
-    case 'home':
-      return '/home';
-    case 'add-device':
-      return '/add-device';
-    case 'account':
-      return '/account';
-    case 'camera-live':
-      return `/camera/${cameraId}/live`;
-    case 'camera-playback':
-      return `/camera/${cameraId}/playback`;
-    case 'camera-settings':
-      return `/camera/${cameraId}/settings`;
-    case 'camera-share':
-      return `/camera/${cameraId}/share`;
-    default:
-      return null;
+// Flatten expo-router's sitemap into the dropdown's navigable screens, so the
+// list always reflects the pages that actually exist in the running app
+// (including pages added later) instead of a hardcoded list.
+function collectSitemapScreens(
+  node: SitemapType | null,
+  cameraId: string,
+  out: ScreenOption[],
+): ScreenOption[] {
+  if (!node) return out;
+  const href = typeof node.href === 'string' ? node.href : '';
+  const isLeaf = !node.children || node.children.length === 0;
+  if (isLeaf && !node.isInternal && !node.isGenerated && href) {
+    const rawSegments = href.replace(/^\//, '').split('/').filter(Boolean);
+    const hasEntropy = rawSegments.some((segment) => /^\d{10,}$/.test(segment));
+    // Route groups like "(tabs)" are transparent in URLs — drop them.
+    const segments = rawSegments.filter((seg) => !GROUP_SEGMENT.test(seg));
+    if (segments.length > 0 && !hasEntropy) {
+      const id = '/' + segments.map((seg) => (DYNAMIC_SEGMENT.test(seg) ? cameraId : seg)).join('/');
+      const label =
+        segments.filter((seg) => !DYNAMIC_SEGMENT.test(seg)).map(humanizeSegment).join(' ') || 'Home';
+      if (!out.some((option) => option.id === id)) out.push({ id, label });
+    }
   }
+  (node.children ?? []).forEach((child) => collectSitemapScreens(child, cameraId, out));
+  return out;
+}
+
+function screenPath(screenId: string, pathname: string | null) {
+  if (!screenId) return null;
+  const path = screenId.startsWith('/') ? screenId : `/${screenId}`;
+  // Keep camera routes pointing at the camera currently in context.
+  if (path.startsWith('/camera/')) {
+    return path.replace(/^\/camera\/[^/]+/, `/camera/${currentCameraId(pathname)}`);
+  }
+  return path;
 }
 
 function postToHost(message: Record<string, unknown>) {
@@ -254,6 +267,19 @@ const PREVIEW_ROUTE_KEY = 'iotek:previewRoute';
 export function IotekPreviewBridge() {
   const router = useRouter();
   const pathname = usePathname();
+  const sitemap = useSitemap();
+  const screens = useMemo(() => collectSitemapScreens(sitemap, 'preview', []), [sitemap]);
+  const screenList = screens.length > 0 ? screens : FALLBACK_SCREENS;
+  const screensRef = useRef<ScreenOption[]>(screenList);
+  screensRef.current = screenList;
+
+  // Re-send the dropdown screens to the host whenever the route tree changes,
+  // so newly added pages show up without a hardcoded list.
+  useEffect(() => {
+    if (Platform.OS !== 'web') return;
+    postToHost({ type: 'iotek:screens', screens: screenList });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sitemap]);
 
   // Remember the screen across preview reloads. An AI edit reloads the iframe
   // (cache-bust) to show new code; a fresh load drops the SPA back on its first
@@ -296,7 +322,7 @@ export function IotekPreviewBridge() {
   useEffect(() => {
     if (Platform.OS !== 'web') return;
     ensureBridgeStyle();
-    postToHost({ type: 'iotek:screens', screens: SCREEN_OPTIONS });
+    postToHost({ type: 'iotek:screens', screens: screensRef.current });
 
     let selectionMode = false;
     let hoveredElement: Element | null = null;
@@ -320,7 +346,7 @@ export function IotekPreviewBridge() {
       if (!data || typeof data !== 'object') return;
       const type = typeof data.type === 'string' ? data.type : '';
       if (type === 'iotek:getScreens') {
-        postToHost({ type: 'iotek:screens', screens: SCREEN_OPTIONS });
+        postToHost({ type: 'iotek:screens', screens: screensRef.current });
         return;
       }
       if (type === 'iotek:navigate' && typeof data.screenId === 'string') {
