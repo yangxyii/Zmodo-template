@@ -6,6 +6,7 @@ import { useAuth } from '../src/store/authStore';
 import { loadRuntimeConfig } from '../src/config';
 import { IotekPreviewBridge } from '../src/previewBridge';
 import { loadHosts } from '../src/api/hostStore';
+import { connectAccessServerFromSession } from '../src/api/auth';
 
 const queryClient = new QueryClient();
 
@@ -33,6 +34,19 @@ export default function RootLayout() {
       loadHosts().finally(() => setHostsReady(true));
     }
   }, [runtimeReady]);
+
+  // Once auth + host_list are restored, connect LibCore to the access server
+  // if we already have a session (relaunch path that skips the login screen).
+  // Without this, TRANSFER-mode live fails with "Not login access server".
+  useEffect(() => {
+    if (hydrated && hostsReady && useAuth.getState().token) {
+      connectAccessServerFromSession().catch((e) => {
+        // Surface the real reason (e.g. token invalid) in the device log
+        // instead of silently swallowing it.
+        console.warn('[zmodo] access server connect failed:', e?.message ?? e);
+      });
+    }
+  }, [hydrated, hostsReady]);
 
   if (!runtimeReady || !hydrated || !hostsReady) {
     // Render nothing while hydrating persisted auth + host state

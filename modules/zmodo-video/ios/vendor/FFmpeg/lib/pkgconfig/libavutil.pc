@@ -1,0 +1,14 @@
+prefix=/Users/liweijie/meshare/3.Code/libcore/third_party/ffmpeg/build_ffmpeg2_6_4_iOS/build/built/arm64
+exec_prefix=${prefix}
+libdir=${prefix}/lib
+includedir=${prefix}/include
+
+Name: libavutil
+Description: FFmpeg utility library
+Version: 54.20.100
+Requires: 
+Requires.private: 
+Conflicts:
+Libs: -L${libdir}  -lavutil -lm
+Libs.private: 
+Cflags: -I${includedir}

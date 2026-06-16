@@ -11,7 +11,7 @@ beforeEach(() => {
 });
 
 test('submits credentials and sets session', async () => {
-  jest.spyOn(authApi, 'login').mockResolvedValue({ token: 'tk', user: { id: '1', username: 'u', email: 'e@x.com' } as any });
+  jest.spyOn(authApi, 'login').mockResolvedValue({ token: 'tk', user: { id: '1', username: 'u', email: 'e@x.com' } as any, connectParams: null });
   const { getByTestId } = render(<LoginScreen />);
   fireEvent.changeText(getByTestId('auth.login.emailInput'), 'e@x.com');
   fireEvent.changeText(getByTestId('auth.login.passwordInput'), 'pw');
@@ -31,9 +31,9 @@ test('shows error banner and keeps token null on login failure', async () => {
 });
 
 test('submit button is disabled while login is pending', async () => {
-  let resolve!: (v: { token: string; user: any }) => void;
+  let resolve!: (v: { token: string; user: any; connectParams: null }) => void;
   jest.spyOn(authApi, 'login').mockReturnValue(
-    new Promise<{ token: string; user: any }>((res) => { resolve = res; }),
+    new Promise<{ token: string; user: any; connectParams: null }>((res) => { resolve = res; }),
   );
   const { getByTestId } = render(<LoginScreen />);
   fireEvent.changeText(getByTestId('auth.login.emailInput'), 'e@x.com');
@@ -45,5 +45,5 @@ test('submit button is disabled while login is pending', async () => {
     expect(btn.props.accessibilityState?.disabled).toBe(true);
   });
   // Resolve so the test cleans up properly
-  resolve({ token: 'tk', user: { id: '1', username: 'u', email: 'e@x.com' } as any });
+  resolve({ token: 'tk', user: { id: '1', username: 'u', email: 'e@x.com' } as any, connectParams: null });
 });

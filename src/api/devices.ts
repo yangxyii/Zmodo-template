@@ -3,7 +3,27 @@ import type { Device } from './types';
 
 export const deviceList = (token: string, start = 0, count = 50) =>
   postForm<Device[]>('app_access', '/device/device_list', { token, start, count }).then(
-    (r) => r.data ?? [],
+    (r) => {
+      const list = r.data ?? [];
+      // Diagnostic (not __DEV__-gated so it also lands in the device console for
+      // Release): how many devices the API reports online, plus the first one's
+      // raw device_online shape, so we can tell "server says all offline" from
+      // "we just need to open an online device".
+      const onlineCount = list.filter((d) => Number(d.device_online) === 1).length;
+      console.log(
+        '[zmodo] device_list:',
+        list.length,
+        'online:',
+        onlineCount,
+        'first.device_online =',
+        JSON.stringify(list[0]?.device_online),
+        'typeof',
+        typeof list[0]?.device_online,
+        'upnp_ip =',
+        JSON.stringify(list[0]?.upnp_ip),
+      );
+      return list;
+    },
   );
 
 export const deviceModify = (
@@ -15,6 +35,16 @@ export const deviceModify = (
 
 export const isOnlineCheck = (token: string, physical_id: string) =>
   postForm('app_access', '/device/is_online', { token, physical_id });
+
+/**
+ * Wake a (battery / low-power) device so it connects to the relay before we try
+ * to stream. The native app calls this via wakeUpDeviceisOnLine → /device/wakeup
+ * with {token, physical_id} (ZSWebInterface.m). Relay cameras (empty upnp_ip)
+ * are usually asleep — without this, startRealPlay fails to register a transfer
+ * path ("register transfer server failed").
+ */
+export const wakeUp = (token: string, physical_id: string) =>
+  postForm('app_access', '/device/wakeup', { token, physical_id });
 
 export const deleteDevice = (token: string, physical_id: string) =>
   postForm('app_access', '/device/device_del', { token, physical_id });

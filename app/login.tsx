@@ -6,11 +6,13 @@ import {
   StyleSheet,
   TextInput,
   Image,
+  Platform,
   type TextInput as TextInputType,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Screen } from '../src/components/Screen';
 import { login } from '../src/api/auth';
+import { connectServer } from '../src/native/zmodoSession';
 import { useAuth } from '../src/store/authStore';
 import { colors, spacing, font } from '../src/theme/tokens';
 
@@ -34,8 +36,33 @@ export default function LoginScreen() {
     setError(null);
     setLoading(true);
     try {
-      const { token, user } = await login(email, password);
+      const { token, user, connectParams } = await login(email, password);
       useAuth.getState().setSession(token, user);
+
+      // Connect LibCore to the Zmodo access server so TRANSFER-mode live
+      // streams work (cameras with no LAN IP, connMode=4).  Fire-and-forget:
+      // failure is non-fatal — the live screen will surface a stream error if
+      // the server is unreachable.  Web/jest see a no-op stub for this import.
+      if (Platform.OS !== 'web') {
+        if (connectParams) {
+          console.log(
+            '[zmodo] connecting access server (login)',
+            connectParams.acc_srv_ip + ':' + connectParams.acc_srv_port,
+            'encrypt_key?', !!connectParams.encrypt_key,
+          );
+          connectServer(connectParams)
+            .then(() => console.log('[zmodo] access server connected OK (login)'))
+            .catch((e) => {
+              // Non-fatal: the live screen also surfaces this via onStreamEvent.
+              console.warn('[zmodo] access server connect failed:', e?.message ?? e);
+            });
+        } else {
+          console.warn(
+            '[zmodo] login: no user_conn host in login response — relay live will not work',
+          );
+        }
+      }
+
       router.replace('/home');
     } catch (err) {
       const msg =

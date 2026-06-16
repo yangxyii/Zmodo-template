@@ -17,5 +17,8 @@ module.exports = {
     // Resolve platform-split VaultWebView to the .web (iframe) variant in Jest
     // so that react-native-webview native code is never loaded in tests.
     '^(.*)/VaultWebView$': '$1/VaultWebView.web',
+    // Route zmodoSession to the no-op web/jest stub so requireNativeModule
+    // is never executed in tests (jest-expo would otherwise prefer .native.ts).
+    '^(.*)/zmodoSession$': '<rootDir>/__mocks__/zmodoSessionMock.js',
   },
 };

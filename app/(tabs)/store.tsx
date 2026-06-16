@@ -1,44 +1,30 @@
 import React from 'react';
-import { View, Text, Image, StyleSheet } from 'react-native';
-import { Screen } from '../../src/components/Screen';
+import { StyleSheet, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { VaultWebView } from '../../src/components/VaultWebView';
 import { colors } from '../../src/theme/tokens';
+
+// The native Zmodo "Store" tab is a WKWebView pointing at the public Zmodo
+// online store (ZmodoStoreViewController). No token required.
+const STORE_URL =
+  'https://www.zmodo.com?utm_campaign=loading&utm_source=iosApp&utm_medium=Referral';
 
 export default function StoreScreen() {
   return (
-    <Screen title="Store">
-      <View style={styles.centered}>
-        <Image
-          source={require('../../assets/zmodo/tab_store_off.png')}
-          style={styles.icon}
-          resizeMode="contain"
-        />
-        <Text style={styles.title}>Coming Soon</Text>
-        <Text style={styles.subtitle}>敬请期待</Text>
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
+      <View style={styles.webviewContainer} testID="store.webview">
+        <VaultWebView uri={STORE_URL} />
       </View>
-    </Screen>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  centered: {
+  container: {
     flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 12,
+    backgroundColor: colors.bg,
   },
-  icon: {
-    width: 48,
-    height: 48,
-    tintColor: colors.textMuted,
-    marginBottom: 8,
-  },
-  title: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: colors.text,
-  },
-  subtitle: {
-    fontSize: 14,
-    color: colors.textMuted,
+  webviewContainer: {
+    flex: 1,
   },
 });

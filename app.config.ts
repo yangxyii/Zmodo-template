@@ -31,7 +31,7 @@ const identityBaseUrl =
   process.env.IOTEK_BASE_URL ??
   runtimeServices.identity?.base_url ??
   runtimeServices.identity?.baseUrl ??
-  'https://11-app-mop.iotek.ai';
+  'https://11-app-mop.meshare.com';
 const liveWebrtcBaseUrl =
   process.env.IOTEK_LIVE_WEBRTC_BASE_URL ??
   runtimeServices.live_webrtc?.base_url ??
@@ -69,6 +69,7 @@ export default {
     plugins: ['expo-router'],
     ios: {
       supportsTablet: true,
+      bundleIdentifier: 'com.zmodo.rn.dev',
     },
     android: {
       adaptiveIcon: {
