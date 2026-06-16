@@ -1,3 +1,5 @@
+import { Platform } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { postForm, ApiError } from './http';
 import { setHostList, clearHosts, rawHosts } from './hostStore';
 import { getIdentityBaseUrl } from '../config';
@@ -5,6 +7,34 @@ import { md5 } from './md5';
 import type { LoginData } from './types';
 import { useAuth } from '../store/authStore';
 import { connectServer } from '../native/zmodoSession';
+
+/**
+ * Stable per-install client UUID. The native app sends a persistent UUID
+ * (FCUUID uuidForDevice) as client_uuid; we were sending a fresh random one
+ * each login, which can break device binding. Persist one and reuse it.
+ */
+const CLIENT_UUID_KEY = 'zmodo.client_uuid';
+let cachedClientUuid: string | null = null;
+async function getClientUuid(): Promise<string> {
+  if (cachedClientUuid) return cachedClientUuid;
+  try {
+    const stored = await AsyncStorage.getItem(CLIENT_UUID_KEY);
+    if (stored) {
+      cachedClientUuid = stored;
+      return stored;
+    }
+  } catch {
+    /* ignore storage errors */
+  }
+  const fresh = globalThis.crypto?.randomUUID?.() ?? `rn-${Date.now()}-${Math.floor(Math.random() * 1e9)}`;
+  cachedClientUuid = fresh;
+  try {
+    await AsyncStorage.setItem(CLIENT_UUID_KEY, fresh);
+  } catch {
+    /* ignore storage errors */
+  }
+  return fresh;
+}
 
 /** True for RFC-1918 / loopback / link-local "ip:port" entries (unreachable from a phone). */
 const isPrivateHostEntry = (entry: string): boolean => {
@@ -47,15 +77,26 @@ export interface ConnectServerParams {
 
 export async function login(email: string, password: string) {
   console.log('[zmodo] LOGIN base url =', getIdentityBaseUrl());
+  const client_uuid = await getClientUuid();
   const r = await postForm<LoginData>('app_access', '/user/user_login', {
     email,
     password: md5(password),
     client: 1,
-    client_uuid: globalThis.crypto?.randomUUID?.() ?? `web-${Date.now()}`,
+    // cid = Zmodo appCid (Utilities.appCid). meshare.com rejects login without
+    // it: "cid dont set value". iotek.ai tolerated its absence.
+    cid: 0,
+    client_uuid,
     client_version: '8.0.0',
     language: 'en',
-    platform: 2,
+    platform: 2, // Zmodo platform code (Utilities.appPlatform)
     app_version: '8.0.0',
+    // app_info — device metadata the native app sends as a JSON string.
+    app_info: JSON.stringify({
+      version_name: '8.0.0',
+      MODEL: 'iPhone',
+      SYS_SDK: String(Platform.Version),
+      SYS_RELEASE: String(Platform.Version),
+    }),
     offset_second: 0,
   });
   setHostList(r.host_list);
