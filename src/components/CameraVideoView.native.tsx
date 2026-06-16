@@ -25,7 +25,7 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { requireNativeViewManager } from 'expo-modules-core';
 import { useQuery } from '@tanstack/react-query';
-import { deviceList } from '../api/devices';
+import { deviceList, wakeUp } from '../api/devices';
 import { useAuth } from '../store/authStore';
 import { colors, font, spacing } from '../theme/tokens';
 import type { StreamMode } from '../native/LibCoreBridge';
@@ -124,6 +124,17 @@ export function CameraVideoView({ physicalId, mode, style }: CameraVideoViewProp
       );
     }
   }, [device, connMode]);
+
+  // Wake the device (battery/low-power cams sleep and report offline). The
+  // native app does this before relay playback; without it the relay has no
+  // path to the device ("register transfer server failed").
+  React.useEffect(() => {
+    if (token && physicalId) {
+      wakeUp(token, physicalId)
+        .then((r) => console.log('[zmodo] wakeup result', physicalId, JSON.stringify(r?.result), JSON.stringify(r?.data)))
+        .catch((e) => console.warn('[zmodo] wakeup failed', physicalId, e?.message ?? e));
+    }
+  }, [token, physicalId]);
 
   return (
     <View style={[styles.container, style]} testID="camera.liveView">

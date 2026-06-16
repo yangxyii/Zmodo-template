@@ -36,6 +36,16 @@ export const deviceModify = (
 export const isOnlineCheck = (token: string, physical_id: string) =>
   postForm('app_access', '/device/is_online', { token, physical_id });
 
+/**
+ * Wake a (battery / low-power) device so it connects to the relay before we try
+ * to stream. The native app calls this via wakeUpDeviceisOnLine → /device/wakeup
+ * with {token, physical_id} (ZSWebInterface.m). Relay cameras (empty upnp_ip)
+ * are usually asleep — without this, startRealPlay fails to register a transfer
+ * path ("register transfer server failed").
+ */
+export const wakeUp = (token: string, physical_id: string) =>
+  postForm('app_access', '/device/wakeup', { token, physical_id });
+
 export const deleteDevice = (token: string, physical_id: string) =>
   postForm('app_access', '/device/device_del', { token, physical_id });
 
