@@ -42,6 +42,9 @@ Pod::Spec.new do |s|
   # System dylibs required by FFmpeg / LibCore
   s.libraries = "c++", "z", "bz2", "iconv"
 
+  # Silence -Wdocumentation noise from the vendor headers' (Chinese) doc comments
+  s.compiler_flags = "-Wno-documentation"
+
   # Swift/Objective-C compatibility + link settings
   s.pod_target_xcconfig = {
     'DEFINES_MODULE'    => 'YES',

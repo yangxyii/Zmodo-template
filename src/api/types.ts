@@ -14,6 +14,10 @@ export interface LoginData {
   email: string;
   nickname?: string;
   photo_url?: string;
+  /** AES encryption key for LibCore streams — returned in login response data */
+  encrypt_key?: string;
+  /** Encryption key ID paired with encrypt_key */
+  encrypt_key_id?: string;
 }
 
 export interface Device {

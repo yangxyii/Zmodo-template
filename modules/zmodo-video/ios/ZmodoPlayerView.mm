@@ -228,7 +228,7 @@ static BOOL sLibCoreInitializedOldPlatform = NO;
                         length:(int)length
                         handle:(z_handle)handle
 {
-    __weak typeof(self) weakSelf = self;
+    __weak __typeof__(self) weakSelf = self;
 
     switch (code) {
         case Z_START_PLAY_OK: {

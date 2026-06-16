@@ -1,12 +1,58 @@
-import React from 'react';
+/**
+ * CameraVideoView.native.tsx  — iOS native implementation (M2.3)
+ *
+ * Renders a ZmodoVideoView backed by LibCore / YUV OpenGL decode.
+ * Props:
+ *   physicalId — device's physical_id (also the camera ID in the URL)
+ *   mode       — "live" | "playback"
+ *
+ * Device lookup: uses the ['devices', token] React-Query cache populated by
+ * the home screen so no extra network round-trip is needed here.
+ *
+ * Prop mapping to ZmodoVideoView:
+ *   physicalId  → physical_id
+ *   channel     → 0  (IPC single-channel; device_channel is count, not index)
+ *   aesKey      → device.aes_key
+ *   platform    → 0  (new Zmodo platform, confirmed from AppData+AccessServer.m)
+ *   videoType   → 0  (H.264 default = DECODE_H264)
+ *   deviceIp    → device.upnp_ip || ''
+ *   port        → parseInt(device.upnp_port) || 0
+ *   connMode    → upnp_ip present ? 5 (UPNP|TRANSFER) : 4 (TRANSFER only)
+ *   token       → current auth token
+ *   mode        → props.mode
+ */
+import React, { useState } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import { requireNativeViewManager } from 'expo-modules-core';
+import { useQuery } from '@tanstack/react-query';
+import { deviceList } from '../api/devices';
+import { useAuth } from '../store/authStore';
 import { colors, font, spacing } from '../theme/tokens';
 import type { StreamMode } from '../native/LibCoreBridge';
 
-// TODO(phase-2): mount native LibCore video view via libCoreBridge.
-// Replace this placeholder with a <NativeViewManagerAdapter> (or equivalent)
-// that calls libCoreBridge.start({ physicalId, channel, mode }) on mount and
-// libCoreBridge.stop() on unmount, then renders the hardware-decoded surface.
+// ---------------------------------------------------------------------------
+// Native view
+// ---------------------------------------------------------------------------
+
+// The Expo view registered via View(ZmodoVideoView.self) in ZmodoVideoModule.
+const ZmodoVideoView = requireNativeViewManager<{
+  physicalId: string;
+  channel: number;
+  aesKey?: string;
+  platform: number;
+  videoType: number;
+  deviceIp: string;
+  port: number;
+  connMode: number;
+  token?: string;
+  mode: string;
+  onStreamEvent?: (e: { nativeEvent: { type: string; message: string } }) => void;
+  style?: object;
+}>('ZmodoVideo');
+
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
 
 export interface CameraVideoViewProps {
   physicalId: string;
@@ -15,47 +61,126 @@ export interface CameraVideoViewProps {
   style?: object;
 }
 
+// ---------------------------------------------------------------------------
+// Component
+// ---------------------------------------------------------------------------
+
 /**
- * Native implementation of CameraVideoView — Phase 1 placeholder.
+ * Native implementation — renders real video via LibCore / NormalPlayView.
  *
- * Until the iOS LibCore bridge is wired (phase-2), native clients see the same
- * bilingual placeholder as the web build.  The testID "camera.liveView" is the
- * stable No-Code element id shared across platforms.
+ * Overlays:
+ *   "Connecting…" — shown until onStreamEvent type === "start"
+ *   error banner  — shown on type === "error", cleared on next start
  */
-export function CameraVideoView({ style }: CameraVideoViewProps) {
+export function CameraVideoView({ physicalId, mode, style }: CameraVideoViewProps) {
+  const token = useAuth((s) => s.token);
+
+  const { data: devices } = useQuery<import('../api/types').Device[]>({
+    queryKey: ['devices', token],
+    queryFn: () => deviceList(token!),
+    enabled: !!token,
+    // Reuse cached data without refetching — live screen already loaded this.
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const device = devices?.find((d) => d.physical_id === physicalId);
+
+  // Stream event overlay state
+  const [streamStatus, setStreamStatus] = useState<'connecting' | 'started' | 'error'>('connecting');
+  const [errorMessage, setErrorMessage] = useState<string>('');
+
+  function handleStreamEvent(e: { nativeEvent: { type: string; message: string } }) {
+    const { type, message } = e.nativeEvent;
+    if (type === 'start') {
+      setStreamStatus('started');
+      setErrorMessage('');
+    } else if (type === 'error') {
+      setStreamStatus('error');
+      setErrorMessage(message ?? '');
+    } else if (type === 'stop') {
+      // On stop, go back to connecting state (view will unmount shortly anyway)
+      setStreamStatus('connecting');
+    }
+  }
+
+  // Prop derivation — safe defaults when device not yet loaded.
+  const upnpIp = device?.upnp_ip ?? '';
+  const upnpPort = device?.upnp_port ? parseInt(device.upnp_port, 10) : 0;
+  // connMode: 5 = UPNP|TRANSFER (hex 0x05) when a LAN IP is known,
+  //           4 = TRANSFER only  (hex 0x04) when upnp_ip is empty.
+  const connMode = upnpIp ? 5 : 4;
+
   return (
     <View style={[styles.container, style]} testID="camera.liveView">
-      {/* Camera icon — pure text glyph, no image asset required */}
-      <Text style={styles.icon} accessibilityLabel="camera icon">
-        📷
-      </Text>
-      <Text style={styles.textCN}>请在手机 App 中查看实时画面</Text>
-      <Text style={styles.textEN}>View live video in the mobile app</Text>
+      <ZmodoVideoView
+        style={styles.video}
+        physicalId={physicalId}
+        channel={0}
+        aesKey={device?.aes_key}
+        platform={0}
+        videoType={0}
+        deviceIp={upnpIp}
+        port={upnpPort}
+        connMode={connMode}
+        token={token ?? undefined}
+        mode={mode}
+        onStreamEvent={handleStreamEvent}
+      />
+
+      {/* Connecting overlay — visible until first frame arrives */}
+      {streamStatus === 'connecting' && (
+        <View style={styles.overlay} pointerEvents="none">
+          <Text style={styles.overlayText}>Connecting…</Text>
+        </View>
+      )}
+
+      {/* Error overlay */}
+      {streamStatus === 'error' && (
+        <View style={styles.overlay} pointerEvents="none">
+          <Text style={styles.overlayTitle}>连接失败 / Poor connection</Text>
+          {errorMessage ? (
+            <Text style={styles.overlayMessage}>{errorMessage}</Text>
+          ) : null}
+        </View>
+      )}
     </View>
   );
 }
+
+// ---------------------------------------------------------------------------
+// Styles
+// ---------------------------------------------------------------------------
 
 const styles = StyleSheet.create({
   container: {
     aspectRatio: 16 / 9,
     backgroundColor: colors.videoBg,
+    width: '100%',
+    position: 'relative',
+  },
+  video: {
+    width: '100%',
+    height: '100%',
+  },
+  overlay: {
+    ...StyleSheet.absoluteFill,
     alignItems: 'center',
     justifyContent: 'center',
-    width: '100%',
+    backgroundColor: 'rgba(0,0,0,0.55)',
   },
-  icon: {
-    fontSize: 40,
-    marginBottom: spacing.sm,
-  },
-  textCN: {
+  overlayText: {
+    color: '#FFFFFF',
     fontSize: font.md,
-    color: colors.textMuted,
+  },
+  overlayTitle: {
+    color: '#FFFFFF',
+    fontSize: font.md,
     marginBottom: spacing.xs,
     textAlign: 'center',
   },
-  textEN: {
+  overlayMessage: {
+    color: 'rgba(255,255,255,0.75)',
     fontSize: font.sm,
-    color: colors.textMuted,
     textAlign: 'center',
     paddingHorizontal: spacing.lg,
   },
