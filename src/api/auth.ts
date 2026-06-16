@@ -36,6 +36,17 @@ export async function login(email: string, password: string) {
     offset_second: 0,
   });
   setHostList(r.host_list);
+  // Diagnostic: the real host_list keys are app_address / alarm_address /
+  // user_conn (AllWebInterfaceName.h). We route HTTP via category "app_access"
+  // which has a base-url fallback, so confirm what the backend actually returns
+  // and whether app_address differs from the base URL (region routing).
+  console.log(
+    '[zmodo] host_list keys:',
+    r.host_list ? Object.keys(r.host_list).join(',') : 'none',
+    '| app_address=', JSON.stringify(r.host_list?.['app_address']),
+    '| alarm_address=', JSON.stringify(r.host_list?.['alarm_address']),
+    '| user_conn=', JSON.stringify(r.host_list?.['user_conn']),
+  );
   if (!r.token || !r.data) throw new ApiError('missing_auth_data', 'Login response missing token or user data');
 
   // Build access-server connect params for native platforms.

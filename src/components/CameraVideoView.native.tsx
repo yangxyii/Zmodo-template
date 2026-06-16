@@ -106,9 +106,24 @@ export function CameraVideoView({ physicalId, mode, style }: CameraVideoViewProp
   // Prop derivation — safe defaults when device not yet loaded.
   const upnpIp = device?.upnp_ip ?? '';
   const upnpPort = device?.upnp_port ? parseInt(device.upnp_port, 10) : 0;
-  // connMode: 5 = UPNP|TRANSFER (hex 0x05) when a LAN IP is known,
-  //           4 = TRANSFER only  (hex 0x04) when upnp_ip is empty.
-  const connMode = upnpIp ? 5 : 4;
+  // connMode bitmask (bit0 UPNP, bit1 LAN, bit2 TRANSFER). The native app
+  // always uses 5 (UPNP|TRANSFER) and only drops to 4 (TRANSFER-only) on
+  // T-Mobile (LiveVideoPlayInstrumens.m). Match that default so behaviour for
+  // relay cameras (empty upnp_ip) is identical to production.
+  const connMode = 5;
+
+  React.useEffect(() => {
+    if (device) {
+      console.log(
+        '[zmodo] open camera',
+        device.physical_id,
+        'online=', JSON.stringify(device.device_online),
+        'upnp_ip=', JSON.stringify(device.upnp_ip),
+        'aes_key?', !!device.aes_key,
+        'connMode=', connMode,
+      );
+    }
+  }, [device, connMode]);
 
   return (
     <View style={[styles.container, style]} testID="camera.liveView">
