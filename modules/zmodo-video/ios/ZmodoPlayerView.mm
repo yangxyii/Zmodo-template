@@ -36,8 +36,10 @@
 // We track whether it has already been called to avoid redundant initialisation
 // across multiple ZmodoPlayerView instances within the same process.
 // ---------------------------------------------------------------------------
-static BOOL sLibCoreInitializedNewPlatform = NO;
-static BOOL sLibCoreInitializedOldPlatform = NO;
+// NOTE: intentionally NON-static (global) so ZmodoSession.mm can `extern`
+// them and share the same one-shot init guard across the pod's translation units.
+BOOL sLibCoreInitializedNewPlatform = NO;
+BOOL sLibCoreInitializedOldPlatform = NO;
 
 // ---------------------------------------------------------------------------
 @implementation ZmodoPlayerView

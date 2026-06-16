@@ -16,6 +16,10 @@ export const setHostList = (h?: HostList) => {
 export const hostFor = (category: string): string =>
   hosts[category]?.[0] ?? getIdentityBaseUrl();
 
+/** First raw host entry for a category, or undefined (NO base-url fallback). */
+export const rawHost = (category: string): string | undefined =>
+  hosts[category]?.[0];
+
 export const clearHosts = () => {
   hosts = {};
   AsyncStorage.removeItem(STORAGE_KEY).catch(() => {});

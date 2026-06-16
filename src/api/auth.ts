@@ -1,7 +1,9 @@
 import { postForm, ApiError } from './http';
-import { setHostList, clearHosts } from './hostStore';
+import { setHostList, clearHosts, rawHost } from './hostStore';
 import { md5 } from './md5';
 import type { LoginData } from './types';
+import { useAuth } from '../store/authStore';
+import { connectServer } from '../native/zmodoSession';
 
 /** Parameters needed to connect LibCore to the Zmodo access server (TRANSFER relay). */
 export interface ConnectServerParams {
@@ -79,6 +81,39 @@ function buildConnectParams(
   if (data.encrypt_key) params.encrypt_key = data.encrypt_key;
   if (data.encrypt_key_id) params.encrypt_key_id = data.encrypt_key_id;
   return params;
+}
+
+/**
+ * Connect LibCore to the Zmodo access server using the CURRENTLY PERSISTED
+ * session (auth store token+user + persisted host_list). Call this on app
+ * startup whenever there's a session — not just at fresh login — because a
+ * relaunch with a persisted session skips the login screen, and TRANSFER-mode
+ * live ("Not login access server") needs this connection established.
+ * No-op on web (connectServer is a stub) and when data is missing.
+ */
+export async function connectAccessServerFromSession(): Promise<void> {
+  const { token, user } = useAuth.getState();
+  if (!token || !user) return;
+
+  const entry = rawHost('user_conn') ?? rawHost('userconn');
+  if (!entry) return;
+  const i = entry.lastIndexOf(':');
+  if (i < 0) return;
+  const acc_srv_ip = entry.slice(0, i);
+  const acc_srv_port = parseInt(entry.slice(i + 1), 10);
+  if (!acc_srv_ip || isNaN(acc_srv_port)) return;
+
+  const params: ConnectServerParams = {
+    token_id: token,
+    client_id: String(user.id),
+    acc_srv_ip,
+    acc_srv_port,
+    cid: '0',
+  };
+  if (user.encrypt_key) params.encrypt_key = user.encrypt_key;
+  if (user.encrypt_key_id) params.encrypt_key_id = user.encrypt_key_id;
+
+  await connectServer(params);
 }
 
 export async function logout(token: string) {
