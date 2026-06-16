@@ -44,8 +44,10 @@ export default function LoginScreen() {
       // failure is non-fatal — the live screen will surface a stream error if
       // the server is unreachable.  Web/jest see a no-op stub for this import.
       if (Platform.OS !== 'web' && connectParams) {
-        connectServer(connectParams).catch(() => {
-          // Ignore connect errors here; stream errors surface via onStreamEvent.
+        connectServer(connectParams).catch((e) => {
+          // Non-fatal: the live screen also surfaces this via onStreamEvent.
+          // Log the real reason (e.g. token invalid) for diagnostics.
+          console.warn('[zmodo] access server connect failed:', e?.message ?? e);
         });
       }
 

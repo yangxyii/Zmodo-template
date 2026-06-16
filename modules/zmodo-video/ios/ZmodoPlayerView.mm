@@ -20,6 +20,7 @@
 #import "LibCoreWrap.h"
 #import "YUVFrame.h"
 #import "ztypes.h"
+#import "ZmodoSession.h"
 
 // ---------------------------------------------------------------------------
 // Class extension — adopt StreamObserverProtocol (all @optional, so no
@@ -116,38 +117,76 @@ BOOL sLibCoreInitializedOldPlatform = NO;
     }
 
     // -----------------------------------------------------------------------
-    // Step 2: create the real-play handle.
-    //   DecodeType cast: the header signature is (DecodeType)videoType so we
-    //   cast the NSInteger the caller supplies.
+    // Step 2: gate the open on access-server readiness.
+    //   Cameras with no LAN IP can only stream through the TRANSFER relay,
+    //   which requires the access-server login to have COMPLETED first —
+    //   otherwise startRealPlay returns "Not login access server".
+    //   connectServer is asynchronous, so wait for Z_CONN_ACC_SRV_OK (resolves
+    //   immediately if already connected).  Devices with a LAN IP can open
+    //   straight away via UPNP/LAN.
     // -----------------------------------------------------------------------
+    BOOL needsAccessServer = (deviceIp.length == 0);
+
+    __weak __typeof__(self) weakSelf = self;
+    void (^openBlock)(void) = ^{
+        [weakSelf p_openStreamWithDeviceId:deviceId
+                                   channel:channel
+                                    aesKey:aesKey
+                                 videoType:videoType
+                                  deviceIp:deviceIp
+                                      port:port
+                                  connMode:connMode];
+    };
+
+    if (needsAccessServer && ![ZmodoSession isAccessServerConnected]) {
+        [[ZmodoSession shared] whenAccessServerConnectedRun:openBlock
+            failure:^(NSInteger code, NSString * _Nullable message) {
+                dispatch_async(dispatch_get_main_queue(), ^{
+                    if (weakSelf.onStreamEvent) {
+                        NSString *msg = message.length > 0
+                            ? [NSString stringWithFormat:@"access server %ld — %@", (long)code, message]
+                            : [NSString stringWithFormat:@"access server %ld", (long)code];
+                        weakSelf.onStreamEvent(@"error", msg);
+                    }
+                });
+            }
+            timeout:15.0];
+    } else {
+        openBlock();
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Create the real-play handle, set the optional AES key, and start streaming.
+// Called either immediately (LAN device / already connected) or once the
+// access server reports Z_CONN_ACC_SRV_OK (relay device).
+// ---------------------------------------------------------------------------
+- (void)p_openStreamWithDeviceId:(NSString *)deviceId
+                         channel:(NSInteger)channel
+                          aesKey:(nullable NSString *)aesKey
+                       videoType:(NSInteger)videoType
+                        deviceIp:(nullable NSString *)deviceIp
+                            port:(NSInteger)port
+                        connMode:(NSInteger)connMode
+{
+    // Create the real-play handle.  DecodeType cast matches the header.
     _handle = [[LibCoreWrap sharedCore]
-                   createRealPlayWithPlatform:platform
+                   createRealPlayWithPlatform:_platform
                                      deviceId:deviceId
                                       channel:channel
                                streamObserver:self
                                     videoType:(DecodeType)videoType];
 
-    // -----------------------------------------------------------------------
-    // Step 3: optionally set AES key (and audio_encrypt=0 default).
-    //   JSON format confirmed from LiveVideoPlayInstrumens.m:
-    //     {"aes_key":"<key>","audio_encrypt":0}
-    // -----------------------------------------------------------------------
+    // Optionally set AES key (audio_encrypt=0 default).  JSON format confirmed
+    // from LiveVideoPlayInstrumens.m: {"aes_key":"<key>","audio_encrypt":0}.
     if (aesKey.length > 0) {
-        // Build param JSON manually to avoid pulling in MJExtension.
         NSString *jsonParams = [NSString stringWithFormat:
             @"{\"aes_key\":\"%@\",\"audio_encrypt\":0}", aesKey];
         [[LibCoreWrap sharedCore] setParamsWithHandle:_handle jsonParams:jsonParams];
     }
 
-    // -----------------------------------------------------------------------
-    // Step 4: start the stream.
-    //   timeout: 30 000 ms (30 s) — matches Real_Play_TimeOut in the app.
-    //   mediaType: 1 = SD (standard definition).  The RN bridge (M2.2) can
-    //              expose a mediaType prop if needed; default to SD for now.
-    //   deviceIp: fall back to empty string if nil (pure transfer mode).
-    //   req_conn_mode: 5 (UPNP | TRANSFER) is the app's default; the caller
-    //              supplies connMode so they can override.
-    // -----------------------------------------------------------------------
+    // Start the stream.  timeout 30s; mediaType 1 = SD; deviceIp empty for
+    // pure transfer; req_conn_mode supplied by the caller.
     NSString *ip = (deviceIp.length > 0) ? deviceIp : @"";
     [[LibCoreWrap sharedCore] startRealPlayWithHandle:_handle
                                              timeout:30000

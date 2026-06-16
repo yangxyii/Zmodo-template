@@ -22,7 +22,12 @@ public class ZmodoVideoModule: Module {
     //   encrypt_key_id — optional
     //   cid            — "0" for Zmodo
     // -----------------------------------------------------------------------
-    AsyncFunction("connect") { (params: [String: Any]) in
+    // connectServer is ASYNCHRONOUS in LibCoreWrap: it only initiates the
+    // login.  ZmodoSession watches the global EventObserver and invokes our
+    // completion when Z_CONN_ACC_SRV_OK / _FAILED / _TOKEN_INVALID arrives (or
+    // a ~20s timeout).  We bridge that to the JS Promise so callers can await
+    // the *real* result and see the failure code if it fails.
+    AsyncFunction("connect") { (params: [String: Any], promise: Promise) in
       // Build the NSDictionary that ZmodoSession / LibCoreWrap expects.
       // JS can send numbers or strings; guard-cast port to NSNumber.
       var dict: [String: Any] = params
@@ -33,7 +38,16 @@ public class ZmodoVideoModule: Module {
           dict["acc_srv_port"] = NSNumber(value: portInt)
         }
       }
-      ZmodoSession.connect(withParams: dict)
+      ZmodoSession.connect(withParams: dict) { (success, code, message) in
+        if success {
+          promise.resolve(true)
+        } else {
+          promise.reject(
+            "E_ACC_CONNECT",
+            "access server connect failed (code=\(code))" + (message.map { ": \($0)" } ?? "")
+          )
+        }
+      }
     }
 
     View(ZmodoVideoView.self) {

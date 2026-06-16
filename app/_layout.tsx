@@ -40,7 +40,11 @@ export default function RootLayout() {
   // Without this, TRANSFER-mode live fails with "Not login access server".
   useEffect(() => {
     if (hydrated && hostsReady && useAuth.getState().token) {
-      connectAccessServerFromSession().catch(() => {});
+      connectAccessServerFromSession().catch((e) => {
+        // Surface the real reason (e.g. token invalid) in the device log
+        // instead of silently swallowing it.
+        console.warn('[zmodo] access server connect failed:', e?.message ?? e);
+      });
     }
   }, [hydrated, hostsReady]);
 
