@@ -20,6 +20,9 @@ export const hostFor = (category: string): string =>
 export const rawHost = (category: string): string | undefined =>
   hosts[category]?.[0];
 
+/** All raw host entries for a category (empty array if none). */
+export const rawHosts = (category: string): string[] => hosts[category] ?? [];
+
 export const clearHosts = () => {
   hosts = {};
   AsyncStorage.removeItem(STORAGE_KEY).catch(() => {});

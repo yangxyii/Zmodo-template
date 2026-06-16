@@ -1,9 +1,30 @@
 import { postForm, ApiError } from './http';
-import { setHostList, clearHosts, rawHost } from './hostStore';
+import { setHostList, clearHosts, rawHosts } from './hostStore';
 import { md5 } from './md5';
 import type { LoginData } from './types';
 import { useAuth } from '../store/authStore';
 import { connectServer } from '../native/zmodoSession';
+
+/** True for RFC-1918 / loopback / link-local "ip:port" entries (unreachable from a phone). */
+const isPrivateHostEntry = (entry: string): boolean => {
+  const ip = entry.split(':')[0];
+  return (
+    /^10\./.test(ip) ||
+    /^127\./.test(ip) ||
+    /^192\.168\./.test(ip) ||
+    /^169\.254\./.test(ip) ||
+    /^172\.(1[6-9]|2\d|3[01])\./.test(ip)
+  );
+};
+
+/**
+ * Pick the access-server "ip:port" to connect to. user_conn often lists a
+ * private address first (e.g. "10.10.0.56:6202") followed by the public one;
+ * prefer the first PUBLIC entry so the phone can actually reach it, falling
+ * back to the first entry if all are private.
+ */
+const pickAccessHost = (entries: string[]): string | undefined =>
+  entries.find((e) => !isPrivateHostEntry(e)) ?? entries[0];
 
 /** Parameters needed to connect LibCore to the Zmodo access server (TRANSFER relay). */
 export interface ConnectServerParams {
@@ -70,8 +91,9 @@ function buildConnectParams(
   // The host_list key is "user_conn" (new platform) confirmed from
   // AllWebInterfaceName.h: kUserConnKey = @"user_conn".
   // Fall back to "userconn" as a safety net for old-platform responses.
+  // Prefer a public entry — user_conn often lists a private IP first.
   const userConnEntry =
-    hostList?.['user_conn']?.[0] ?? hostList?.['userconn']?.[0] ?? null;
+    pickAccessHost(hostList?.['user_conn'] ?? hostList?.['userconn'] ?? []) ?? null;
 
   if (!userConnEntry) return null;
 
@@ -109,7 +131,8 @@ export async function connectAccessServerFromSession(): Promise<void> {
     return;
   }
 
-  const entry = rawHost('user_conn') ?? rawHost('userconn');
+  const entry =
+    pickAccessHost(rawHosts('user_conn')) ?? pickAccessHost(rawHosts('userconn'));
   if (!entry) {
     // Most common cause of "stuck connecting / all offline" on relaunch: the
     // persisted host_list has no user_conn (e.g. session saved before host
