@@ -93,15 +93,30 @@ function buildConnectParams(
  */
 export async function connectAccessServerFromSession(): Promise<void> {
   const { token, user } = useAuth.getState();
-  if (!token || !user) return;
+  if (!token || !user) {
+    console.log('[zmodo] connect skip: no persisted session');
+    return;
+  }
 
   const entry = rawHost('user_conn') ?? rawHost('userconn');
-  if (!entry) return;
+  if (!entry) {
+    // Most common cause of "stuck connecting / all offline" on relaunch: the
+    // persisted host_list has no user_conn (e.g. session saved before host
+    // persistence existed). A fresh log out + log in repopulates it.
+    console.warn('[zmodo] connect skip: no user_conn host — please log out and log in again');
+    return;
+  }
   const i = entry.lastIndexOf(':');
-  if (i < 0) return;
+  if (i < 0) {
+    console.warn('[zmodo] connect skip: malformed user_conn host:', entry);
+    return;
+  }
   const acc_srv_ip = entry.slice(0, i);
   const acc_srv_port = parseInt(entry.slice(i + 1), 10);
-  if (!acc_srv_ip || isNaN(acc_srv_port)) return;
+  if (!acc_srv_ip || isNaN(acc_srv_port)) {
+    console.warn('[zmodo] connect skip: bad acc_srv ip/port from:', entry);
+    return;
+  }
 
   const params: ConnectServerParams = {
     token_id: token,
@@ -113,7 +128,13 @@ export async function connectAccessServerFromSession(): Promise<void> {
   if (user.encrypt_key) params.encrypt_key = user.encrypt_key;
   if (user.encrypt_key_id) params.encrypt_key_id = user.encrypt_key_id;
 
+  console.log(
+    '[zmodo] connecting access server (session)',
+    acc_srv_ip + ':' + acc_srv_port,
+    'encrypt_key?', !!user.encrypt_key,
+  );
   await connectServer(params);
+  console.log('[zmodo] access server connected OK (session)');
 }
 
 export async function logout(token: string) {

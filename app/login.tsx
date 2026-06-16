@@ -43,12 +43,24 @@ export default function LoginScreen() {
       // streams work (cameras with no LAN IP, connMode=4).  Fire-and-forget:
       // failure is non-fatal — the live screen will surface a stream error if
       // the server is unreachable.  Web/jest see a no-op stub for this import.
-      if (Platform.OS !== 'web' && connectParams) {
-        connectServer(connectParams).catch((e) => {
-          // Non-fatal: the live screen also surfaces this via onStreamEvent.
-          // Log the real reason (e.g. token invalid) for diagnostics.
-          console.warn('[zmodo] access server connect failed:', e?.message ?? e);
-        });
+      if (Platform.OS !== 'web') {
+        if (connectParams) {
+          console.log(
+            '[zmodo] connecting access server (login)',
+            connectParams.acc_srv_ip + ':' + connectParams.acc_srv_port,
+            'encrypt_key?', !!connectParams.encrypt_key,
+          );
+          connectServer(connectParams)
+            .then(() => console.log('[zmodo] access server connected OK (login)'))
+            .catch((e) => {
+              // Non-fatal: the live screen also surfaces this via onStreamEvent.
+              console.warn('[zmodo] access server connect failed:', e?.message ?? e);
+            });
+        } else {
+          console.warn(
+            '[zmodo] login: no user_conn host in login response — relay live will not work',
+          );
+        }
       }
 
       router.replace('/home');
