@@ -55,4 +55,8 @@ export const parsePermission = (d: Device): DevicePermission => {
   }
 };
 
-export const isOnline = (d: Device) => d.device_online === '1';
+// device_online may arrive as the string "1" OR the number 1 depending on the
+// backend — the native app reads it with -integerValue, which tolerates both.
+// A strict === '1' check shows every device as offline when the API sends a
+// number, so coerce to a number here too.
+export const isOnline = (d: Device) => Number(d.device_online) === 1;

@@ -3,7 +3,25 @@ import type { Device } from './types';
 
 export const deviceList = (token: string, start = 0, count = 50) =>
   postForm<Device[]>('app_access', '/device/device_list', { token, start, count }).then(
-    (r) => r.data ?? [],
+    (r) => {
+      const list = r.data ?? [];
+      // Diagnostic: confirm the shape/value of device_online from the live API.
+      // Intentionally not __DEV__-gated so it also lands in the device console
+      // for Release builds while we debug the offline/relay issue.
+      if (list[0]) {
+        console.log(
+          '[zmodo] device_list:',
+          list.length,
+          'first.device_online =',
+          JSON.stringify(list[0].device_online),
+          'typeof',
+          typeof list[0].device_online,
+          'upnp_ip =',
+          JSON.stringify(list[0].upnp_ip),
+        );
+      }
+      return list;
+    },
   );
 
 export const deviceModify = (
