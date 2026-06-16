@@ -1,5 +1,6 @@
 import { postForm, ApiError } from './http';
 import { setHostList, clearHosts, rawHosts } from './hostStore';
+import { getIdentityBaseUrl } from '../config';
 import { md5 } from './md5';
 import type { LoginData } from './types';
 import { useAuth } from '../store/authStore';
@@ -45,6 +46,7 @@ export interface ConnectServerParams {
 }
 
 export async function login(email: string, password: string) {
+  console.log('[zmodo] LOGIN base url =', getIdentityBaseUrl());
   const r = await postForm<LoginData>('app_access', '/user/user_login', {
     email,
     password: md5(password),

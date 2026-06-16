@@ -51,7 +51,13 @@ export function getRuntimeConfig() {
 }
 
 export function getIdentityBaseUrl() {
-  return readBaseUrl(runtimeConfig.services, 'identity') ?? DEFAULT_IDENTITY_BASE_URL;
+  // TEMP override: the installed dev build embedded extra.iotekBaseUrl=iotek.ai
+  // at build time, which wins over .env / DEFAULT_IDENTITY_BASE_URL. Force the
+  // production meshare.com cluster here (served fresh by Metro, no rebuild) so
+  // we can verify whether the backend is the cause. Revert to the line below +
+  // rebuild once confirmed.
+  return 'https://11-app-mop.meshare.com';
+  // return readBaseUrl(runtimeConfig.services, 'identity') ?? DEFAULT_IDENTITY_BASE_URL;
 }
 
 export function getLiveWebrtcBaseUrl() {
